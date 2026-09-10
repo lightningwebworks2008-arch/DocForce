@@ -1,0 +1,6 @@
+{
+  "name": "DocForge",
+  "description": "Automated legal and technical documentation platform with repository scanning, version control, AI compliance auditing, and one-click deployment.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
