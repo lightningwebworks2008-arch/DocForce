@@ -7,21 +7,17 @@ import {
   Briefcase,
   Copy,
   Download,
-  Sparkles,
   Check,
   Eye,
   Edit3,
   Search,
   RefreshCw,
-  ExternalLink,
   BookOpen,
-  Terminal,
-  Layers,
   History
 } from 'lucide-react';
 
 interface DocEngineViewProps {
-  project: ProjectProfile;
+  project: ProjectProfile | null;
   docs: DocumentItem[];
   activeDocId: string;
   onSelectDoc: (id: string) => void;
@@ -78,67 +74,66 @@ export const DocEngineView: React.FC<DocEngineViewProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  // Simple clean markdown renderer without heavy external deps
+  // Clean, technical markdown preview matching xpander.ai dark palette
   const renderMarkdownPreview = (text: string) => {
     const lines = text.split('\n');
     return (
-      <div className="space-y-3 font-sans text-slate-800 leading-relaxed text-sm">
+      <div className="space-y-3 font-sans text-[#E4E2ED] leading-relaxed text-sm">
         {lines.map((line, idx) => {
           if (line.startsWith('# ')) {
             return (
-              <h1 key={idx} className="text-2xl font-bold text-slate-900 border-b border-slate-200 pb-2 mt-4 mb-2">
+              <h1 key={idx} className="font-display text-2xl font-semibold text-[#FFFFFF] border-b border-[#24222D] pb-2 mt-5 mb-3 tracking-tight">
                 {line.replace('# ', '')}
               </h1>
             );
           }
           if (line.startsWith('## ')) {
             return (
-              <h2 key={idx} className="text-xl font-bold text-slate-900 mt-6 mb-2">
+              <h2 key={idx} className="font-display text-xl font-semibold text-[#FFFFFF] mt-6 mb-2 tracking-tight">
                 {line.replace('## ', '')}
               </h2>
             );
           }
           if (line.startsWith('### ')) {
             return (
-              <h3 key={idx} className="text-base font-semibold text-slate-900 mt-4 mb-1">
+              <h3 key={idx} className="font-display text-base font-semibold text-[#FFFFFF] mt-4 mb-1">
                 {line.replace('### ', '')}
               </h3>
             );
           }
           if (line.startsWith('#### ')) {
             return (
-              <h4 key={idx} className="text-sm font-semibold text-slate-900 mt-3 mb-1">
+              <h4 key={idx} className="text-xs uppercase font-mono tracking-wider text-[#33FBFF] mt-3 mb-1">
                 {line.replace('#### ', '')}
               </h4>
             );
           }
           if (line.startsWith('> ')) {
             return (
-              <blockquote key={idx} className="border-l-4 border-indigo-500 pl-4 py-1 italic text-slate-600 bg-indigo-50/40 rounded-r">
+              <blockquote key={idx} className="pl-4 py-1.5 italic text-[#9A98A4] border-l-2 border-[#753CFF] bg-[#18171E]">
                 {line.replace('> ', '')}
               </blockquote>
             );
           }
           if (line.startsWith('```')) {
-            return null; // Handle code blocks with simple wrapper or render nicely
+            return null;
           }
           if (line.startsWith('* ') || line.startsWith('- ')) {
             return (
-              <li key={idx} className="ml-5 list-disc text-slate-700">
+              <li key={idx} className="ml-5 list-disc text-[#F0F0F3]">
                 {line.replace(/^(\*|-)\s+/, '')}
               </li>
             );
           }
           if (line.startsWith('---')) {
-            return <hr key={idx} className="my-4 border-slate-200" />;
+            return <hr key={idx} className="my-4 border-[#24222D]" />;
           }
           if (line.trim() === '') {
             return <div key={idx} className="h-1.5" />;
           }
 
-          // Inline formatting like **bold** or `code`
           return (
-            <p key={idx} className="text-slate-700">
+            <p key={idx} className="text-[#E4E2ED]">
               {line}
             </p>
           );
@@ -149,163 +144,162 @@ export const DocEngineView: React.FC<DocEngineViewProps> = ({
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Top Controls & Status Bar */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-            <BookOpen className="w-5 h-5" />
+      {/* Technical Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 pb-4 border-b border-[#24222D]">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="font-display text-2xl sm:text-3xl font-semibold text-[#FFFFFF] tracking-tight">
+              Documentation Engine
+            </h1>
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded-xs bg-[#1F1D28] border border-[#2D2A3A] text-[#33FBFF]">
+              {docs.length} Documents Active
+            </span>
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold text-slate-900">DocForge Document Engine</h1>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 font-mono font-medium text-slate-600">
-                {docs.length} Documents Active
-              </span>
-            </div>
-            <p className="text-xs text-slate-500">
-              Generated for <strong className="text-slate-700">{project.name}</strong> • Current Git Tag:{' '}
-              <strong className="text-indigo-600">{project.activeVersion}</strong>
-            </p>
-          </div>
+          <p className="text-xs text-[#8C8C93] mt-1">
+            {project ? (
+              <>
+                Active policy baseline for <strong className="text-[#FFFFFF] font-medium">{project.name}</strong> • Release <strong className="font-mono text-[#33FBFF]">{project.activeVersion}</strong>
+              </>
+            ) : (
+              'Connect a repository or select a project to manage legal and technical documentation'
+            )}
+          </p>
         </div>
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={onNavigateToHumanReview}
-            className="px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+            className="px-3 py-1.5 bg-[#18171E] hover:bg-[#201E28] text-[#F0F0F3] border border-[#2D2A3A] text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 cursor-pointer"
           >
-            <Shield className="w-3.5 h-3.5 text-amber-600" />
+            <Shield className="w-3.5 h-3.5 text-[#B43BFF]" />
             <span>Human Review Layer</span>
           </button>
 
           <button
             onClick={onNavigateToVersionControl}
-            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer"
+            className="px-3 py-1.5 bg-[#18171E] hover:bg-[#201E28] text-[#F0F0F3] border border-[#2D2A3A] text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 cursor-pointer"
           >
-            <History className="w-3.5 h-3.5" />
+            <History className="w-3.5 h-3.5 text-[#33FBFF]" />
             <span>Version History</span>
           </button>
         </div>
       </div>
 
-      {/* Main Grid: Sidebar Navigator + Editor/Preview Pane */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* Main Grid: Directory Column + Editor/Preview Pane */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Document Directory Column */}
-        <div className="lg:col-span-4 space-y-4">
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            {/* Search Input */}
-            <div className="relative mb-3">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search documents..."
-                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-              />
-            </div>
+        <div className="lg:col-span-4 space-y-3">
+          {/* Search Input */}
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#8C8C93]" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search policies..."
+              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-md border border-[#2A2735] bg-[#111015] text-[#F0F0F3] placeholder-[#5E5C68] focus:border-[#B43BFF] focus:bg-[#15141C] outline-none transition-colors"
+            />
+          </div>
 
-            {/* Category Filter Pills */}
-            <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100 rounded-lg mb-3">
-              <button
-                onClick={() => setSelectedCategory('all')}
-                className={`py-1 text-center text-[11px] font-semibold rounded transition-all ${
-                  selectedCategory === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                All ({docs.length})
-              </button>
-              <button
-                onClick={() => setSelectedCategory('legal')}
-                className={`py-1 text-center text-[11px] font-semibold rounded transition-all ${
-                  selectedCategory === 'legal' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Legal (6)
-              </button>
-              <button
-                onClick={() => setSelectedCategory('technical')}
-                className={`py-1 text-center text-[11px] font-semibold rounded transition-all ${
-                  selectedCategory === 'technical' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Tech (6)
-              </button>
-              <button
-                onClick={() => setSelectedCategory('business')}
-                className={`py-1 text-center text-[11px] font-semibold rounded transition-all ${
-                  selectedCategory === 'business' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Biz (3)
-              </button>
-            </div>
+          {/* Category Filter Pills */}
+          <div className="flex gap-1 p-0.5 bg-[#131217] rounded-md border border-[#24222D]">
+            <button
+              onClick={() => setSelectedCategory('all')}
+              className={`flex-1 py-1 text-center text-[11px] font-medium rounded-md transition-colors cursor-pointer ${
+                selectedCategory === 'all' ? 'bg-[#B43BFF] text-white font-semibold' : 'text-[#8C8C93] hover:text-[#FFFFFF]'
+              }`}
+            >
+              All ({docs.length})
+            </button>
+            <button
+              onClick={() => setSelectedCategory('legal')}
+              className={`flex-1 py-1 text-center text-[11px] font-medium rounded-md transition-colors cursor-pointer ${
+                selectedCategory === 'legal' ? 'bg-[#B43BFF] text-white font-semibold' : 'text-[#8C8C93] hover:text-[#FFFFFF]'
+              }`}
+            >
+              Legal ({docs.filter((d) => d.category === 'legal').length})
+            </button>
+            <button
+              onClick={() => setSelectedCategory('technical')}
+              className={`flex-1 py-1 text-center text-[11px] font-medium rounded-md transition-colors cursor-pointer ${
+                selectedCategory === 'technical' ? 'bg-[#B43BFF] text-white font-semibold' : 'text-[#8C8C93] hover:text-[#FFFFFF]'
+              }`}
+            >
+              Tech ({docs.filter((d) => d.category === 'technical').length})
+            </button>
+            <button
+              onClick={() => setSelectedCategory('business')}
+              className={`flex-1 py-1 text-center text-[11px] font-medium rounded-md transition-colors cursor-pointer ${
+                selectedCategory === 'business' ? 'bg-[#B43BFF] text-white font-semibold' : 'text-[#8C8C93] hover:text-[#FFFFFF]'
+              }`}
+            >
+              Biz ({docs.filter((d) => d.category === 'business').length})
+            </button>
+          </div>
 
-            {/* Document List */}
-            <div className="space-y-1 max-h-[520px] overflow-y-auto pr-1">
-              {filteredDocs.map((doc) => {
+          {/* Document List */}
+          <div className="border border-[#24222D] bg-[#15141C] divide-y divide-[#24222D] max-h-[560px] overflow-y-auto rounded-md">
+            {filteredDocs.length === 0 ? (
+              <div className="p-4 text-center text-xs text-[#8C8C93] italic">
+                No documents found matching filter.
+              </div>
+            ) : (
+              filteredDocs.map((doc) => {
                 const isCurrent = doc.id === activeDoc?.id;
                 return (
                   <button
                     key={doc.id}
                     onClick={() => onSelectDoc(doc.id)}
-                    className={`w-full text-left p-2.5 rounded-lg text-xs transition-all flex items-center justify-between border cursor-pointer ${
+                    className={`w-full text-left p-3 text-xs transition-colors flex items-center justify-between gap-2 cursor-pointer ${
                       isCurrent
-                        ? 'bg-indigo-50/70 border-indigo-200 text-indigo-950 font-semibold shadow-2xs'
-                        : 'bg-white border-transparent text-slate-700 hover:bg-slate-50 hover:border-slate-200'
+                        ? 'bg-[#1F1D2B] text-[#FFFFFF] font-semibold border-l-2 border-[#B43BFF]'
+                        : 'hover:bg-[#1A1822] text-[#9A98A4]'
                     }`}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      {doc.category === 'legal' && <Shield className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
-                      {doc.category === 'technical' && <Terminal className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
-                      {doc.category === 'business' && <Briefcase className="w-3.5 h-3.5 text-amber-600 shrink-0" />}
-                      <span className="truncate">{doc.title}</span>
+                    <div className="truncate">
+                      <div className="truncate font-medium">{doc.title}</div>
+                      <div className="text-[10px] text-[#8C8C93] font-mono mt-0.5">{doc.type}.md</div>
                     </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
-                        {doc.version}
-                      </span>
-                    </div>
+                    <span className="text-[10px] font-mono text-[#8C8C93] shrink-0">{doc.version}</span>
                   </button>
                 );
-              })}
-            </div>
+              })
+            )}
           </div>
         </div>
 
         {/* Editor / Reader Pane Column */}
-        <div className="lg:col-span-8 space-y-4">
+        <div className="lg:col-span-8">
           {activeDoc ? (
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+            <div className="border border-[#24222D] bg-[#15141C] rounded-md flex flex-col shadow-xl">
               {/* Header Bar */}
-              <div className="p-4 border-b border-slate-200 bg-slate-50/60 flex flex-wrap items-center justify-between gap-3">
+              <div className="p-4 border-b border-[#24222D] bg-[#131217] flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 font-semibold uppercase">
+                    <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-[#B43BFF]/15 text-[#B43BFF] border border-[#B43BFF]/30">
                       {activeDoc.category}
                     </span>
-                    <h2 className="text-base font-bold text-slate-900">{activeDoc.title}</h2>
-                    <span className="text-xs text-slate-400 font-mono">({activeDoc.type}.md)</span>
+                    <h2 className="font-display text-lg font-semibold text-[#FFFFFF]">{activeDoc.title}</h2>
+                    <span className="text-xs text-[#8C8C93] font-mono">({activeDoc.type}.md)</span>
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+                  <div className="flex items-center gap-3 text-xs text-[#8C8C93] mt-1 font-mono">
                     <span>Version: {activeDoc.version}</span>
                     <span>•</span>
-                    <span>Approx. {activeDoc.wordCount} words</span>
+                    <span>{activeDoc.wordCount} words</span>
                     <span>•</span>
-                    <span className="text-emerald-700 font-medium">Status: {activeDoc.status.toUpperCase()}</span>
+                    <span className="text-[#0DB44A] font-medium">Status: {activeDoc.status.toUpperCase()}</span>
                   </div>
                 </div>
 
                 {/* Right Controls */}
                 <div className="flex items-center gap-2 flex-wrap">
                   {/* View/Edit Toggle */}
-                  <div className="flex bg-slate-200 p-0.5 rounded-lg">
+                  <div className="flex bg-[#131217] p-0.5 rounded-md border border-[#24222D]">
                     <button
                       onClick={() => setIsEditMode(false)}
-                      className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1 ${
-                        !isEditMode ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                      className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors flex items-center gap-1 cursor-pointer ${
+                        !isEditMode ? 'bg-[#B43BFF] text-white font-semibold' : 'text-[#8C8C93] hover:text-[#FFFFFF]'
                       }`}
                     >
                       <Eye className="w-3.5 h-3.5" />
@@ -313,62 +307,53 @@ export const DocEngineView: React.FC<DocEngineViewProps> = ({
                     </button>
                     <button
                       onClick={() => setIsEditMode(true)}
-                      className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1 ${
-                        isEditMode ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                      className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors flex items-center gap-1 cursor-pointer ${
+                        isEditMode ? 'bg-[#B43BFF] text-white font-semibold' : 'text-[#8C8C93] hover:text-[#FFFFFF]'
                       }`}
                     >
                       <Edit3 className="w-3.5 h-3.5" />
-                      <span>Markdown Edit</span>
+                      <span>Edit Source</span>
                     </button>
                   </div>
 
-                  {/* Regenerate With AI */}
+                  {/* Regenerate */}
                   <button
                     onClick={() => onRegenerateDocWithAI(activeDoc.type)}
                     disabled={isGenerating}
-                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    className="px-3 py-1 bg-[#B43BFF] hover:bg-[#A127F5] text-white rounded-md text-xs font-semibold transition-all shadow-[0_0_12px_rgba(180,59,255,0.25)] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                   >
-                    {isGenerating ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        <span>Synthesizing...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>AI Re-Synthesize</span>
-                      </>
-                    )}
+                    <RefreshCw className={`w-3 h-3 ${isGenerating ? 'animate-spin' : ''}`} />
+                    <span>{isGenerating ? 'Updating...' : 'Regenerate'}</span>
                   </button>
 
                   {/* Copy */}
                   <button
                     onClick={handleCopyMarkdown}
-                    className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs transition-all cursor-pointer"
+                    className="p-1.5 bg-[#18171E] hover:bg-[#201E28] text-[#F0F0F3] border border-[#2D2A3A] rounded-md text-xs transition-colors cursor-pointer"
                     title="Copy raw markdown"
                   >
-                    {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                    {copied ? <Check className="w-3.5 h-3.5 text-[#0DB44A]" /> : <Copy className="w-3.5 h-3.5" />}
                   </button>
 
                   {/* Download */}
                   <button
                     onClick={handleDownloadFile}
-                    className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs transition-all cursor-pointer"
+                    className="p-1.5 bg-[#18171E] hover:bg-[#201E28] text-[#F0F0F3] border border-[#2D2A3A] rounded-md text-xs transition-colors cursor-pointer"
                     title="Download as .md file"
                   >
-                    <Download className="w-4 h-4" />
+                    <Download className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
 
               {/* Content Body */}
-              <div className="p-6 min-h-[500px] max-h-[640px] overflow-y-auto">
+              <div className="p-8 min-h-[500px] max-h-[640px] overflow-y-auto">
                 {isEditMode ? (
                   <textarea
                     rows={24}
                     value={activeDoc.content}
                     onChange={(e) => onUpdateDocContent(activeDoc.id, e.target.value)}
-                    className="w-full h-full font-mono text-xs leading-relaxed p-4 rounded-lg border border-slate-300 bg-slate-50 text-slate-800 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                    className="w-full h-full font-mono text-xs leading-relaxed p-4 border border-[#24222D] bg-[#0E0D13] text-[#F0F0F3] focus:border-[#B43BFF] outline-none resize-none rounded-md"
                   />
                 ) : (
                   renderMarkdownPreview(activeDoc.content)
@@ -376,7 +361,7 @@ export const DocEngineView: React.FC<DocEngineViewProps> = ({
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-500">
+            <div className="border border-[#24222D] bg-[#15141C] p-12 text-center text-[#8C8C93] rounded-xs">
               Select a document from the left directory to preview.
             </div>
           )}

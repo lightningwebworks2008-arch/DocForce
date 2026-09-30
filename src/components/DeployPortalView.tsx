@@ -4,21 +4,15 @@ import {
   Globe,
   UploadCloud,
   CheckCircle2,
-  ExternalLink,
   Copy,
   Check,
   Code2,
-  Download,
   Printer,
-  Shield,
-  Search,
-  Share2,
-  RefreshCw,
-  Terminal
+  RefreshCw
 } from 'lucide-react';
 
 interface DeployPortalViewProps {
-  project: ProjectProfile;
+  project: ProjectProfile | null;
   docs: DocumentItem[];
 }
 
@@ -29,11 +23,12 @@ export const DeployPortalView: React.FC<DeployPortalViewProps> = ({ project, doc
   const [deployedNotice, setDeployedNotice] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedScript, setCopiedScript] = useState(false);
-  const [portalSearch, setPortalSearch] = useState('');
 
   const currentDoc = docs.find((d) => d.type === activePublicPath) || docs[0];
+  const projectName = project?.name || 'Your App';
 
   const handleDeploy = () => {
+    if (docs.length === 0 || !selectedTarget) return;
     setIsDeploying(true);
     setTimeout(() => {
       setIsDeploying(false);
@@ -44,7 +39,8 @@ export const DeployPortalView: React.FC<DeployPortalViewProps> = ({ project, doc
 
   const getPublicUrl = (type: DocType) => {
     const slug = type.replace('-policy', '').replace('-page', '').replace('-docs', '');
-    return `${project.websiteUrl}/${slug}`;
+    const origin = project?.websiteUrl || 'https://my-app.com';
+    return `${origin}/${slug}`;
   };
 
   const handleCopyUrl = () => {
@@ -56,7 +52,7 @@ export const DeployPortalView: React.FC<DeployPortalViewProps> = ({ project, doc
   const embedScriptSnippet = `<!-- DocForge Hosted Privacy & Legal Widget -->
 <script
   src="https://cdn.docforge.io/v2/embed.js"
-  data-project-id="${project.id}"
+  data-project-id="${project?.id || 'live'}"
   data-theme="light"
   data-position="bottom-right"
   async
@@ -68,37 +64,46 @@ export const DeployPortalView: React.FC<DeployPortalViewProps> = ({ project, doc
     setTimeout(() => setCopiedScript(false), 2000);
   };
 
+  const deploymentTargets = [
+    { id: 'vercel' as const, label: 'Vercel Edge', desc: 'Automatic ISR edge distribution' },
+    { id: 'netlify' as const, label: 'Netlify Edge', desc: 'Git commit webhook trigger' },
+    { id: 'github' as const, label: 'GitHub Pages', desc: 'Auto-publish to gh-pages branch' },
+    { id: 'custom' as const, label: 'Custom Domain CNAME', desc: 'Point DNS record to edge proxy' },
+  ];
+
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
-      {/* Header Banner */}
-      <div className="bg-slate-900 text-slate-100 rounded-2xl p-6 sm:p-8 border border-slate-800 shadow-xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="space-y-6 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="pb-5 border-b border-[#24222D] flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-2 text-indigo-400 font-semibold text-sm">
-            <UploadCloud className="w-4 h-4" />
-            <span>Workflow Step 6: One-Click Instant Deployment & Public Portal</span>
+          <div className="flex items-center gap-2 mb-1.5 text-[#8C8C93] font-mono text-xs uppercase tracking-wider">
+            <UploadCloud className="w-3.5 h-3.5 text-[#33FBFF]" />
+            <span>Workflow Step 6: One-Click Instant Deployment &amp; Public Portal</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-            Publish & Host Live Documentation
+          <h1 className="text-2xl sm:text-3xl font-display font-semibold tracking-tight text-[#FFFFFF]">
+            Publish &amp; Host Live Documentation
           </h1>
-          <p className="text-slate-300 text-sm sm:text-base mt-1 max-w-2xl">
+          <p className="text-[#8C8C93] text-sm sm:text-base mt-1 max-w-2xl leading-relaxed">
             Deploy your legal policies, technical guides, and security trust center to Vercel, Netlify, or custom domains in seconds.
           </p>
         </div>
 
         <button
           onClick={handleDeploy}
-          disabled={isDeploying}
-          className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition-all shadow-md flex items-center gap-2 shrink-0 cursor-pointer disabled:opacity-50"
+          disabled={isDeploying || docs.length === 0}
+          className="px-4 py-2 bg-[#B43BFF] hover:bg-[#A127F5] text-white rounded-md text-xs font-semibold transition-all shadow-[0_0_15px_rgba(180,59,255,0.3)] flex items-center gap-2 shrink-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isDeploying ? (
             <>
-              <RefreshCw className="w-4 h-4 animate-spin" />
-              <span>Building Static Edge Pages...</span>
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              <span>Building Edge Pages...</span>
             </>
           ) : (
             <>
-              <UploadCloud className="w-4 h-4" />
-              <span>One-Click Deploy Now</span>
+              <UploadCloud className="w-3.5 h-3.5" />
+              <span>
+                {docs.length === 0 ? 'No Documents to Deploy' : 'Deploy to Selected Target'}
+              </span>
             </>
           )}
         </button>
@@ -106,254 +111,230 @@ export const DeployPortalView: React.FC<DeployPortalViewProps> = ({ project, doc
 
       {/* Deployment Notification */}
       {deployedNotice && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center justify-between gap-4">
+        <div className="p-3.5 rounded-md bg-[#0DB44A]/10 border border-[#0DB44A]/30 text-[#0DB44A] flex items-center justify-between gap-4 shadow-md">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-            <span className="text-sm font-semibold">
-              Deployment Successful! Updated edge cache for {project.websiteUrl}/privacy, /terms, and /security.
+            <CheckCircle2 className="w-4 h-4 text-[#0DB44A] shrink-0" />
+            <span className="text-xs font-medium">
+              Deployment Successful. Updated edge cache for {project?.websiteUrl || 'https://my-app.com'}/privacy, /terms, and /security.
             </span>
           </div>
-          <span className="text-xs font-mono bg-white px-2.5 py-1 rounded border border-emerald-300 text-emerald-800">
+          <span className="text-[11px] font-mono px-2 py-0.5 rounded-md border border-[#0DB44A]/30 bg-[#15141C] text-[#0DB44A]">
             Build Time: 0.8s
           </span>
         </div>
       )}
 
-      {/* Deployment Providers & Endpoints */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <button
-          onClick={() => setSelectedTarget('vercel')}
-          className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
-            selectedTarget === 'vercel'
-              ? 'border-indigo-600 bg-white ring-2 ring-indigo-600 shadow-xs'
-              : 'border-slate-200 bg-white hover:border-slate-300'
-          }`}
-        >
-          <span className="text-xs font-bold text-slate-900 block">Vercel Edge Network</span>
-          <span className="text-[11px] text-slate-500 block mt-1">Automatic ISR, zero-config</span>
-          <span className="text-[10px] font-mono font-medium text-emerald-600 mt-2 block">Status: Connected</span>
-        </button>
-
-        <button
-          onClick={() => setSelectedTarget('netlify')}
-          className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
-            selectedTarget === 'netlify'
-              ? 'border-indigo-600 bg-white ring-2 ring-indigo-600 shadow-xs'
-              : 'border-slate-200 bg-white hover:border-slate-300'
-          }`}
-        >
-          <span className="text-xs font-bold text-slate-900 block">Netlify Edge</span>
-          <span className="text-[11px] text-slate-500 block mt-1">Direct git push deploy</span>
-          <span className="text-[10px] font-mono font-medium text-slate-500 mt-2 block">Status: Available</span>
-        </button>
-
-        <button
-          onClick={() => setSelectedTarget('github')}
-          className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
-            selectedTarget === 'github'
-              ? 'border-indigo-600 bg-white ring-2 ring-indigo-600 shadow-xs'
-              : 'border-slate-200 bg-white hover:border-slate-300'
-          }`}
-        >
-          <span className="text-xs font-bold text-slate-900 block">GitHub Pages</span>
-          <span className="text-[11px] text-slate-500 block mt-1">Auto-commits to gh-pages branch</span>
-          <span className="text-[10px] font-mono font-medium text-slate-500 mt-2 block">Status: Available</span>
-        </button>
-
-        <button
-          onClick={() => setSelectedTarget('custom')}
-          className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
-            selectedTarget === 'custom'
-              ? 'border-indigo-600 bg-white ring-2 ring-indigo-600 shadow-xs'
-              : 'border-slate-200 bg-white hover:border-slate-300'
-          }`}
-        >
-          <span className="text-xs font-bold text-slate-900 block">Custom Domain CNAME</span>
-          <span className="text-[11px] text-slate-500 block mt-1">docs.yourapp.com</span>
-          <span className="text-[10px] font-mono font-medium text-emerald-600 mt-2 block">Status: Active SSL</span>
-        </button>
+      {/* Deployment Target Selection */}
+      <div className="p-3.5 bg-[#15141C] rounded-md border border-[#24222D] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+        <span className="text-xs font-mono uppercase tracking-wider text-[#8C8C93]">
+          Target Provider:
+        </span>
+        <div className="flex flex-wrap gap-1.5">
+          {deploymentTargets.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setSelectedTarget(t.id)}
+              className={`px-3 py-1.5 rounded-md border text-xs font-mono transition-all cursor-pointer flex items-center gap-1.5 ${
+                selectedTarget === t.id
+                  ? 'bg-[#B43BFF] text-white border-[#B43BFF] shadow-[0_0_10px_rgba(180,59,255,0.3)]'
+                  : 'bg-[#18171E] text-[#8C8C93] border-[#24222D] hover:text-[#FFFFFF] hover:bg-[#201E28]'
+              }`}
+            >
+              <span className="font-medium">{t.label}</span>
+              <span className={`text-[10px] ${selectedTarget === t.id ? 'text-white/80' : 'text-[#8C8C93]'}`}>
+                • {t.desc}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Live Interactive Public Reader Portal Preview */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
-        {/* Browser Frame Header */}
-        <div className="p-3 bg-slate-100 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 mr-2">
-              <div className="w-3 h-3 rounded-full bg-rose-400" />
-              <div className="w-3 h-3 rounded-full bg-amber-400" />
-              <div className="w-3 h-3 rounded-full bg-emerald-400" />
-            </div>
-
-            <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-md border border-slate-200 text-xs font-mono text-slate-700 min-w-[240px] sm:min-w-[320px]">
-              <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="truncate">{getPublicUrl(activePublicPath)}</span>
-            </div>
+      <div className="bg-[#15141C] rounded-md border border-[#24222D] overflow-hidden shadow-xl">
+        {/* Navigation & Address Header */}
+        <div className="p-3 bg-[#111015] border-b border-[#24222D] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 bg-[#18171E] px-3 py-1 rounded-md border border-[#24222D] text-xs font-mono text-[#33FBFF] min-w-[240px] sm:min-w-[320px]">
+            <Globe className="w-3.5 h-3.5 text-[#33FBFF] shrink-0" />
+            <span className="truncate">{getPublicUrl(activePublicPath)}</span>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={handleCopyUrl}
-              className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded text-xs font-medium transition-all flex items-center gap-1 cursor-pointer"
+              className="px-2.5 py-1 bg-[#18171E] hover:bg-[#22202A] text-[#F0F0F3] border border-[#2D2A3A] rounded-md text-xs font-medium transition-colors flex items-center gap-1 cursor-pointer"
             >
-              {copiedUrl ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>Copy Live URL</span>
+              {copiedUrl ? <Check className="w-3.5 h-3.5 text-[#0DB44A]" /> : <Copy className="w-3.5 h-3.5 text-[#8C8C93]" />}
+              <span>Copy URL</span>
             </button>
             <button
               onClick={() => window.print()}
-              className="p-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded text-xs transition-all cursor-pointer"
+              className="p-1.5 bg-[#18171E] hover:bg-[#22202A] text-[#F0F0F3] border border-[#2D2A3A] rounded-md text-xs transition-colors cursor-pointer"
               title="Print document"
             >
-              <Printer className="w-3.5 h-3.5" />
+              <Printer className="w-3.5 h-3.5 text-[#8C8C93]" />
             </button>
           </div>
         </div>
 
         {/* Public Portal Navigation Tabs */}
-        <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between overflow-x-auto">
-          <div className="flex items-center gap-1 shrink-0">
+        <div className="px-5 py-2.5 border-b border-[#24222D] bg-[#131217] flex items-center justify-between overflow-x-auto">
+          <div className="flex items-center gap-1 shrink-0 font-mono text-xs">
             <button
               onClick={() => setActivePublicPath('privacy-policy')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
                 activePublicPath === 'privacy-policy'
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-[#B43BFF] text-white font-semibold'
+                  : 'text-[#8C8C93] hover:text-white'
               }`}
             >
               /privacy
             </button>
             <button
               onClick={() => setActivePublicPath('terms-of-service')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
                 activePublicPath === 'terms-of-service'
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-[#B43BFF] text-white font-semibold'
+                  : 'text-[#8C8C93] hover:text-white'
               }`}
             >
               /terms
             </button>
             <button
               onClick={() => setActivePublicPath('security-page')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
                 activePublicPath === 'security-page'
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-[#B43BFF] text-white font-semibold'
+                  : 'text-[#8C8C93] hover:text-white'
               }`}
             >
               /security
             </button>
             <button
               onClick={() => setActivePublicPath('ai-disclosure')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
                 activePublicPath === 'ai-disclosure'
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-[#B43BFF] text-white font-semibold'
+                  : 'text-[#8C8C93] hover:text-white'
               }`}
             >
               /ai-transparency
             </button>
             <button
               onClick={() => setActivePublicPath('api-docs')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
                 activePublicPath === 'api-docs'
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-[#B43BFF] text-white font-semibold'
+                  : 'text-[#8C8C93] hover:text-white'
               }`}
             >
               /docs/api
             </button>
           </div>
 
-          <div className="text-[11px] text-slate-400 font-mono shrink-0 hidden sm:block">
-            DocForge Hosted Public Reader
+          <div className="text-[11px] text-[#8C8C93] font-mono shrink-0 hidden sm:block">
+            DocForge Reader Preview
           </div>
         </div>
 
         {/* Rendered Live Portal Page */}
-        <div className="p-8 sm:p-12 max-w-4xl mx-auto space-y-6 min-h-[460px]">
-          <div className="flex items-center justify-between pb-6 border-b border-slate-200">
-            <div>
-              <span className="text-xs font-mono font-semibold text-indigo-600 uppercase tracking-wider">
-                {project.name} Official Governance
-              </span>
-              <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mt-1">
-                {currentDoc.title}
-              </h1>
-              <p className="text-xs text-slate-500 mt-1 font-mono">
-                Current Release: {currentDoc.version} • Published on{' '}
-                {new Date(currentDoc.lastModified).toLocaleDateString()}
+        <div className="p-8 sm:p-12 max-w-3xl mx-auto space-y-6 min-h-[440px] bg-[#0C0B0D] text-[#F0F0F3]">
+          {!currentDoc ? (
+            <div className="p-12 text-center space-y-3">
+              <div className="w-10 h-10 rounded-md bg-[#18171E] text-[#33FBFF] flex items-center justify-center mx-auto border border-[#24222D]">
+                <Globe className="w-5 h-5 text-[#33FBFF]" />
+              </div>
+              <h3 className="text-sm font-semibold text-[#FFFFFF]">No Documentation Available to Preview</h3>
+              <p className="text-xs text-[#8C8C93] max-w-md mx-auto leading-relaxed">
+                Generate documentation in Doc Engine or inspect your repository in Connect &amp; Scan to preview live hosted pages.
               </p>
             </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between pb-5 border-b border-[#24222D]">
+                <div>
+                  <span className="text-[11px] font-mono text-[#8C8C93] uppercase tracking-wider block">
+                    {projectName} Official Governance
+                  </span>
+                  <h1 className="text-2xl font-display font-semibold text-[#FFFFFF] tracking-tight mt-1">
+                    {currentDoc.title}
+                  </h1>
+                  <p className="text-xs text-[#8C8C93] mt-1 font-mono">
+                    Current Release: <span className="text-[#33FBFF]">{currentDoc.version}</span> • Published on{' '}
+                    {new Date(currentDoc.lastModified).toLocaleDateString()}
+                  </p>
+                </div>
 
-            <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center font-bold text-slate-700 text-lg border border-slate-200">
-              {project.name.charAt(0)}
-            </div>
-          </div>
+                <div className="w-10 h-10 rounded-md bg-[#18171E] flex items-center justify-center font-display font-semibold text-[#33FBFF] text-base border border-[#24222D]">
+                  {projectName.charAt(0)}
+                </div>
+              </div>
 
-          {/* Simple readable reader view */}
-          <div className="space-y-4 text-slate-800 text-sm leading-relaxed font-sans">
-            {currentDoc.content.split('\n').map((line, idx) => {
-              if (line.startsWith('# ')) return null; // already rendered as title
-              if (line.startsWith('## ')) {
-                return (
-                  <h2 key={idx} className="text-lg font-bold text-slate-900 mt-6 pt-2 border-t border-slate-100">
-                    {line.replace('## ', '')}
-                  </h2>
-                );
-              }
-              if (line.startsWith('### ')) {
-                return (
-                  <h3 key={idx} className="text-base font-semibold text-slate-900 mt-4">
-                    {line.replace('### ', '')}
-                  </h3>
-                );
-              }
-              if (line.startsWith('* ') || line.startsWith('- ')) {
-                return (
-                  <li key={idx} className="ml-5 list-disc text-slate-700 text-xs sm:text-sm">
-                    {line.replace(/^(\*|-)\s+/, '')}
-                  </li>
-                );
-              }
-              if (line.startsWith('---')) {
-                return <hr key={idx} className="my-6 border-slate-200" />;
-              }
-              if (line.trim() === '') return <div key={idx} className="h-2" />;
-              return (
-                <p key={idx} className="text-slate-700 text-xs sm:text-sm">
-                  {line}
-                </p>
-              );
-            })}
-          </div>
+              {/* Reader Typography */}
+              <div className="space-y-4 text-[#D1D0DB] text-sm leading-relaxed">
+                {currentDoc.content.split('\n').map((line, idx) => {
+                  if (line.startsWith('# ')) return null;
+                  if (line.startsWith('## ')) {
+                    return (
+                      <h2 key={idx} className="text-base font-display font-semibold text-[#FFFFFF] mt-6 pt-3 border-t border-[#24222D]">
+                        {line.replace('## ', '')}
+                      </h2>
+                    );
+                  }
+                  if (line.startsWith('### ')) {
+                    return (
+                      <h3 key={idx} className="text-sm font-display font-semibold text-[#FFFFFF] mt-4">
+                        {line.replace('### ', '')}
+                      </h3>
+                    );
+                  }
+                  if (line.startsWith('* ') || line.startsWith('- ')) {
+                    return (
+                      <li key={idx} className="ml-5 list-disc text-[#A5A3B0] text-xs sm:text-sm">
+                        {line.replace(/^(\*|-)\s+/, '')}
+                      </li>
+                    );
+                  }
+                  if (line.startsWith('---')) {
+                    return <hr key={idx} className="my-5 border-[#24222D]" />;
+                  }
+                  if (line.trim() === '') return <div key={idx} className="h-2" />;
+                  return (
+                    <p key={idx} className="text-[#D1D0DB] text-xs sm:text-sm leading-relaxed">
+                      {line}
+                    </p>
+                  );
+                })}
+              </div>
 
-          <div className="pt-8 mt-8 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-500 gap-2">
-            <span>© {new Date().getFullYear()} {project.name}. All rights reserved.</span>
-            <span>Verified by DocForge Regulatory Assistant</span>
-          </div>
+              <div className="pt-6 mt-8 border-t border-[#24222D] flex flex-col sm:flex-row sm:items-center justify-between text-xs text-[#8C8C93] font-mono gap-2">
+                <span>© {new Date().getFullYear()} {projectName}. All rights reserved.</span>
+                <span className="text-[#33FBFF]">Verified by DocForge Regulatory Assistant</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       {/* Embeddable Snippet Section */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
+      <div className="bg-[#15141C] rounded-md border border-[#24222D] p-5 space-y-3 shadow-lg">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <Code2 className="w-5 h-5 text-indigo-600" />
-            <span>Embed In-App Privacy & Consent Modal</span>
+          <h2 className="text-sm font-semibold text-[#FFFFFF] flex items-center gap-2">
+            <Code2 className="w-4 h-4 text-[#33FBFF]" />
+            <span>Embed In-App Privacy &amp; Consent Modal</span>
           </h2>
           <button
             onClick={handleCopyScript}
-            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
+            className="px-3 py-1.5 bg-[#B43BFF] hover:bg-[#A127F5] text-white rounded-md text-xs font-semibold transition-all shadow-[0_0_12px_rgba(180,59,255,0.25)] flex items-center gap-1.5 cursor-pointer"
           >
-            {copiedScript ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+            {copiedScript ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5 text-[#8C8C93]" />}
             <span>Copy Widget Code</span>
           </button>
         </div>
-        <p className="text-xs text-slate-500">
-          Paste this script tag before the closing <code className="text-indigo-600 font-mono text-xs">&lt;/body&gt;</code> of your web app to provide automatic legal link modals and cookie consent compliance.
+        <p className="text-xs text-[#8C8C93]">
+          Paste this script tag before the closing <code className="text-[#33FBFF] bg-[#111015] px-1.5 py-0.5 rounded-md font-mono text-xs border border-[#24222D]">&lt;/body&gt;</code> of your web app to provide automatic legal link modals and cookie consent compliance.
         </p>
 
-        <div className="p-4 rounded-lg bg-slate-950 text-indigo-300 font-mono text-xs overflow-x-auto">
+        <div className="p-3.5 rounded-md bg-[#0E0D13] border border-[#24222D] text-[#33FBFF] font-mono text-xs overflow-x-auto">
           <pre>{embedScriptSnippet}</pre>
         </div>
       </div>

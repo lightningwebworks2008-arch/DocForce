@@ -6,7 +6,6 @@ import {
   User,
   ShieldCheck,
   X,
-  Sparkles,
   Database,
   ArrowRight,
   AlertCircle
@@ -83,53 +82,53 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 sm:p-8 shadow-2xl relative text-slate-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0C0B0D]/85 backdrop-blur-sm">
+      <div className="bg-[#15141C] border border-[#2D2A3A] rounded-md w-full max-w-md p-6 relative text-[#F0F0F3] shadow-2xl">
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-all cursor-pointer"
+          className="absolute right-4 top-4 text-[#8C8C93] hover:text-[#FFFFFF] p-1 rounded-md hover:bg-[#201E28] transition-colors cursor-pointer"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
 
         {/* Title & Badge */}
-        <div className="mb-6 text-center">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold mb-3">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Supabase Auth & Database</span>
+        <div className="mb-5 text-center">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#753CFF]/15 border border-[#753CFF]/30 text-[#B43BFF] text-[10px] font-mono uppercase tracking-wider mb-2">
+            <Database className="w-3 h-3 text-[#33FBFF]" />
+            <span>Developer Authentication</span>
           </div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">
+          <h2 className="text-xl font-display font-semibold text-[#FFFFFF] tracking-tight">
             {mode === 'signin' ? 'Sign in to DocForge' : 'Create Developer Account'}
           </h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Connect your GitHub account to inspect repositories, analyze AST manifests, and generate legal documents.
+          <p className="text-xs text-[#8C8C93] mt-1">
+            Connect your developer account to inspect repositories, analyze AST manifests, and generate legal documents.
           </p>
         </div>
 
         {errorMsg && (
-          <div className="mb-4 p-3 rounded-xl bg-red-950/40 border border-red-800/60 text-red-300 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+          <div className="mb-4 p-2.5 rounded-md bg-[#FF5A5A]/10 border border-[#FF5A5A]/30 text-[#FF5A5A] text-xs flex items-center gap-2">
+            <AlertCircle className="w-3.5 h-3.5 shrink-0 text-[#FF5A5A]" />
             <span>{errorMsg}</span>
           </div>
         )}
 
         {/* OAuth Buttons */}
-        <div className="space-y-3 mb-6">
+        <div className="space-y-2 mb-5">
           <button
             onClick={handleGithub}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-medium text-sm transition-all cursor-pointer shadow-sm hover:shadow"
+            className="w-full flex items-center justify-center gap-2.5 px-3.5 py-2 rounded-md bg-[#18171E] hover:bg-[#201E28] text-[#F0F0F3] font-medium text-xs transition-colors cursor-pointer border border-[#2A2735]"
           >
-            <Github className="w-5 h-5" />
+            <Github className="w-4 h-4" />
             <span>Continue with GitHub</span>
           </button>
 
           <button
             onClick={handleGoogle}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-medium text-sm transition-all cursor-pointer shadow-sm"
+            className="w-full flex items-center justify-center gap-2.5 px-3.5 py-2 rounded-md bg-[#18171E] hover:bg-[#201E28] text-[#F0F0F3] font-medium text-xs transition-colors cursor-pointer border border-[#2A2735]"
           >
-            <svg className="w-4 h-4" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
               <path
                 fill="#4285F4"
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -152,50 +151,50 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
         </div>
 
         {/* Divider */}
-        <div className="relative flex py-2 items-center mb-6">
-          <div className="grow border-t border-slate-800"></div>
-          <span className="shrink mx-3 text-slate-500 text-xs font-mono uppercase">Or email</span>
-          <div className="grow border-t border-slate-800"></div>
+        <div className="relative flex py-1 items-center mb-4">
+          <div className="grow border-t border-[#24222D]"></div>
+          <span className="shrink mx-3 text-[#8C8C93] text-[10px] font-mono uppercase tracking-wider">Or email</span>
+          <div className="grow border-t border-[#24222D]"></div>
         </div>
 
         {/* Email / Password Form */}
-        <form onSubmit={handleSubmit} className="space-y-3.5">
+        <form onSubmit={handleSubmit} className="space-y-3">
           {mode === 'signup' && (
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Full Name</label>
+              <label className="block text-[10px] font-mono uppercase tracking-wider text-[#8C8C93] mb-1">Full Name</label>
               <div className="relative">
-                <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <User className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#8C8C93]" />
                 <input
                   type="text"
                   required
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Alex Chen"
-                  className="w-full pl-9 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  className="w-full pl-8 pr-3 py-1.5 bg-[#0E0D13] border border-[#272435] rounded-md text-xs text-[#F0F0F3] placeholder-[#5E5C68] focus:outline-none focus:border-[#B43BFF]"
                 />
               </div>
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
+            <label className="block text-[10px] font-mono uppercase tracking-wider text-[#8C8C93] mb-1">Email Address</label>
             <div className="relative">
-              <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <Mail className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#8C8C93]" />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="developer@example.com"
-                className="w-full pl-9 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                className="w-full pl-8 pr-3 py-1.5 bg-[#0E0D13] border border-[#272435] rounded-md text-xs text-[#F0F0F3] placeholder-[#5E5C68] focus:outline-none focus:border-[#B43BFF]"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Password</label>
+            <label className="block text-[10px] font-mono uppercase tracking-wider text-[#8C8C93] mb-1">Password</label>
             <div className="relative">
-              <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <Lock className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#8C8C93]" />
               <input
                 type="password"
                 required
@@ -203,7 +202,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-9 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                className="w-full pl-8 pr-3 py-1.5 bg-[#0E0D13] border border-[#272435] rounded-md text-xs text-[#F0F0F3] placeholder-[#5E5C68] focus:outline-none focus:border-[#B43BFF]"
               />
             </div>
           </div>
@@ -211,7 +210,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-2 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            className="w-full mt-2 py-2 px-3 bg-[#B43BFF] hover:bg-[#A127F5] text-white text-xs font-semibold rounded-md transition-all shadow-[0_0_15px_rgba(180,59,255,0.25)] flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
             <span>{mode === 'signin' ? 'Sign In with Email' : 'Create Account'}</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -219,14 +218,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
         </form>
 
         {/* Footer Toggle */}
-        <div className="mt-5 text-center text-xs text-slate-400">
+        <div className="mt-4 text-center text-xs text-[#8C8C93]">
           {mode === 'signin' ? (
             <span>
               Don&apos;t have an account?{' '}
               <button
                 type="button"
                 onClick={() => setMode('signup')}
-                className="text-indigo-400 hover:underline font-semibold cursor-pointer"
+                className="text-[#33FBFF] hover:underline font-semibold cursor-pointer ml-1"
               >
                 Sign up
               </button>
@@ -237,7 +236,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
               <button
                 type="button"
                 onClick={() => setMode('signin')}
-                className="text-indigo-400 hover:underline font-semibold cursor-pointer"
+                className="text-[#33FBFF] hover:underline font-semibold cursor-pointer ml-1"
               >
                 Sign in
               </button>
@@ -246,12 +245,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
         </div>
 
         {/* Supabase Status Hint */}
-        <div className="mt-5 pt-4 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+        <div className="mt-4 pt-3 border-t border-[#24222D] text-[10px] font-mono text-[#8C8C93] flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <Database className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Backend: {isSupabaseConfigured ? 'Live Supabase Cloud' : 'Active Local Store'}</span>
+            <Database className="w-3 h-3 text-[#33FBFF]" />
+            <span>Backend: {isSupabaseConfigured ? 'Live Cloud' : 'Local Store'}</span>
           </div>
-          <div className="flex items-center gap-1 text-emerald-400">
+          <div className="flex items-center gap-1 text-[#0DB44A]">
             <ShieldCheck className="w-3 h-3" />
             <span>Zero-Secret Storage</span>
           </div>

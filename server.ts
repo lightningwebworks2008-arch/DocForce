@@ -64,8 +64,16 @@ interface GitHubSession {
 }
 const ghSessionStore = new Map<string, GitHubSession>();
 
+function getSessionId(req: express.Request): string | undefined {
+  return (
+    req.cookies?.docforge_gh_sid ||
+    (req.headers["x-github-session"] as string) ||
+    undefined
+  );
+}
+
 function getSessionToken(req: express.Request): string | undefined {
-  const sid = req.cookies?.docforge_gh_sid;
+  const sid = getSessionId(req);
   if (sid && ghSessionStore.has(sid)) {
     return ghSessionStore.get(sid)!.token;
   }
@@ -77,7 +85,7 @@ function getSessionToken(req: express.Request): string | undefined {
 }
 
 function getSessionUser(req: express.Request) {
-  const sid = req.cookies?.docforge_gh_sid;
+  const sid = getSessionId(req);
   if (sid && ghSessionStore.has(sid)) {
     return ghSessionStore.get(sid)!.user;
   }
@@ -135,7 +143,49 @@ async function startServer() {
     res.json({ success: true, ...updated });
   });
 
-  // 3. Initiate GitHub OAuth redirect flow
+  function getRedirectUri(req: express.Request): string {
+    if (process.env.APP_URL) {
+      return `${process.env.APP_URL.replace(/\/$/, "")}/api/github/oauth/callback`;
+    }
+    const host = req.get("host") || "localhost:3000";
+    const protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
+    return `${protocol}://${host}/api/github/oauth/callback`;
+  }
+
+  // 3a. Get GitHub OAuth authorization URL directly (for popup flow to avoid iframe restrictions)
+  app.get("/api/github/oauth/url", (req, res) => {
+    try {
+      const configStatus = getGitHubConfigStatus();
+      if (!configStatus.configured) {
+        return res.status(400).json({
+          configured: false,
+          error: "GitHub OAuth is not configured on the server. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET, or authenticate using a Personal Access Token.",
+        });
+      }
+
+      const redirectUri = getRedirectUri(req);
+      const state = "df_" + Math.random().toString(36).substring(2, 15);
+      res.cookie("docforge_gh_state", state, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+        maxAge: 15 * 60 * 1000,
+        path: "/",
+      });
+
+      const authUrl = getGitHubOAuthUrl(redirectUri, state);
+      res.json({
+        configured: true,
+        url: authUrl,
+        redirectUri,
+      });
+    } catch (err: any) {
+      console.error("GitHub OAuth URL generation error:", err.message);
+      res.status(500).json({ error: err.message || "Failed to generate GitHub OAuth URL" });
+    }
+  });
+
+  // 3b. Initiate GitHub OAuth flow (renders a popup launcher or redirects top-level)
   app.get("/api/github/oauth/authorize", (req, res) => {
     try {
       const configStatus = getGitHubConfigStatus();
@@ -145,52 +195,114 @@ async function startServer() {
         });
       }
 
-      // Build absolute callback URL
-      const host = req.get("host") || "localhost:3000";
-      const protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
-      const redirectUri = `${protocol}://${host}/api/github/oauth/callback`;
-
+      const redirectUri = getRedirectUri(req);
       const state = "df_" + Math.random().toString(36).substring(2, 15);
       res.cookie("docforge_gh_state", state, {
         httpOnly: true,
-        sameSite: "lax",
+        secure: true,
+        sameSite: "none",
         maxAge: 15 * 60 * 1000,
         path: "/",
       });
 
       const authUrl = getGitHubOAuthUrl(redirectUri, state);
-      res.redirect(authUrl);
+
+      if (req.headers.accept?.includes("application/json") || req.query.json === "true") {
+        return res.json({ url: authUrl, redirectUri });
+      }
+
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Opening GitHub Authorization...</title>
+            <style>
+              body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+              .card { text-align: center; padding: 32px; background: #1e293b; border-radius: 16px; max-width: 420px; border: 1px solid #334155; }
+              .btn { display: inline-block; padding: 12px 24px; background: #4f46e5; color: white; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14px; margin-top: 16px; }
+            </style>
+          </head>
+          <body>
+            <div class="card">
+              <h3 style="margin-top: 0; margin-bottom: 8px;">Connecting to GitHub</h3>
+              <p style="color: #94a3b8; font-size: 14px; line-height: 1.5;">Opening GitHub authorization window...</p>
+              <a class="btn" href="${authUrl}" target="_blank" rel="noopener noreferrer">Click here if not redirected</a>
+              <script>
+                if (window.top === window.self) {
+                  window.location.href = ${JSON.stringify(authUrl)};
+                } else {
+                  window.open(${JSON.stringify(authUrl)}, 'github_oauth_popup', 'width=600,height=750');
+                }
+              </script>
+            </div>
+          </body>
+        </html>
+      `);
     } catch (err: any) {
       console.error("GitHub OAuth authorize error:", err.message);
       res.status(500).json({ error: err.message || "Failed to initiate GitHub OAuth" });
     }
   });
 
-  // 4. Handle GitHub OAuth callback
-  app.get("/api/github/oauth/callback", async (req, res) => {
+  // 4. Handle GitHub OAuth callback (Popup message communication for iframe compatibility)
+  app.get(["/api/github/oauth/callback", "/api/github/oauth/callback/"], async (req, res) => {
     try {
       const { code, state, error, error_description } = req.query;
 
       if (error) {
         console.warn("GitHub OAuth access denied or cancelled:", error, error_description);
-        return res.redirect(`/?github_error=${encodeURIComponent(String(error_description || error))}`);
+        const errMsg = String(error_description || error || "GitHub authorization was cancelled.");
+        return res.send(`
+          <!DOCTYPE html>
+          <html>
+            <head><title>GitHub Connection Cancelled</title></head>
+            <body style="font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+              <div style="text-align: center; padding: 32px; background: #1e293b; border-radius: 16px; max-width: 420px; border: 1px solid #334155;">
+                <h3 style="color: #ef4444; margin-top: 0; margin-bottom: 8px;">GitHub Connection Cancelled</h3>
+                <p style="color: #94a3b8; font-size: 14px;">${errMsg}</p>
+              </div>
+              <script>
+                if (window.opener) {
+                  window.opener.postMessage({ type: 'GITHUB_OAUTH_ERROR', error: ${JSON.stringify(errMsg)} }, '*');
+                  setTimeout(() => { try { window.close(); } catch(e) {} }, 1500);
+                } else {
+                  window.location.href = '/?github_error=' + encodeURIComponent(${JSON.stringify(errMsg)});
+                }
+              </script>
+            </body>
+          </html>
+        `);
       }
 
       if (!code || typeof code !== "string") {
-        return res.redirect("/?github_error=Missing+authorization+code+from+GitHub");
+        const errMsg = "Missing authorization code from GitHub callback";
+        return res.send(`
+          <!DOCTYPE html>
+          <html>
+            <head><title>Authorization Failed</title></head>
+            <body style="font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+              <div style="text-align: center; padding: 32px; background: #1e293b; border-radius: 16px; max-width: 420px; border: 1px solid #334155;">
+                <h3 style="color: #ef4444; margin-top: 0; margin-bottom: 8px;">Authorization Failed</h3>
+                <p style="color: #94a3b8; font-size: 14px;">${errMsg}</p>
+              </div>
+              <script>
+                if (window.opener) {
+                  window.opener.postMessage({ type: 'GITHUB_OAUTH_ERROR', error: ${JSON.stringify(errMsg)} }, '*');
+                  setTimeout(() => { try { window.close(); } catch(e) {} }, 1500);
+                } else {
+                  window.location.href = '/?github_error=' + encodeURIComponent(${JSON.stringify(errMsg)});
+                }
+              </script>
+            </body>
+          </html>
+        `);
       }
 
-      const host = req.get("host") || "localhost:3000";
-      const protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
-      const redirectUri = `${protocol}://${host}/api/github/oauth/callback`;
-
-      // Exchange code for token
+      const redirectUri = getRedirectUri(req);
       const { accessToken, tokenType, scope } = await exchangeGitHubOAuthCode(code, redirectUri);
-
-      // Fetch confirmed GitHub user profile
       const ghUser = await fetchGitHubUser(accessToken);
 
-      // Store in secure server-side session store
       const sid = "gh_sess_" + Math.random().toString(36).substring(2) + Date.now().toString(36);
       ghSessionStore.set(sid, {
         token: accessToken,
@@ -198,11 +310,11 @@ async function startServer() {
         createdAt: Date.now(),
       });
 
-      // Set HTTP-only session cookie
       res.cookie("docforge_gh_sid", sid, {
         httpOnly: true,
-        sameSite: "lax",
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        secure: true,
+        sameSite: "none",
+        maxAge: 30 * 24 * 60 * 60 * 1000,
         path: "/",
       });
 
@@ -210,18 +322,98 @@ async function startServer() {
       const sb = getSupabaseAdmin();
       if (sb) {
         try {
-          // Attempt to record connection in github_connections table
-          // Note: If no user_id available yet, it will associate when user signs in or connects
           console.log(`GitHub OAuth connected for @${ghUser.login} (ID: ${ghUser.id})`);
         } catch (dbErr) {
           console.warn("Supabase connection record note:", dbErr);
         }
       }
 
-      res.redirect("/?github_connected=true");
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head><title>GitHub Account Connected</title></head>
+          <body style="font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+            <div style="text-align: center; padding: 32px; background: #1e293b; border-radius: 16px; max-width: 420px; border: 1px solid #334155;">
+              <div style="width: 48px; height: 48px; background: #065f46; color: #34d399; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 24px;">✓</div>
+              <h3 style="color: #34d399; margin-top: 0; margin-bottom: 8px;">GitHub Connected!</h3>
+              <p style="color: #94a3b8; font-size: 14px; margin-bottom: 4px;">Authorized as <strong>@${ghUser.login}</strong></p>
+              <p style="color: #64748b; font-size: 12px; margin-top: 12px;">Closing window and returning to DocForge...</p>
+            </div>
+            <script>
+              if (window.opener) {
+                window.opener.postMessage({
+                  type: 'GITHUB_OAUTH_SUCCESS',
+                  sid: ${JSON.stringify(sid)},
+                  user: ${JSON.stringify(ghUser)}
+                }, '*');
+                setTimeout(() => { try { window.close(); } catch(e) {} }, 800);
+              } else {
+                window.location.href = '/?github_connected=true';
+              }
+            </script>
+          </body>
+        </html>
+      `);
     } catch (err: any) {
       console.error("GitHub OAuth callback error:", err.message);
-      res.redirect(`/?github_error=${encodeURIComponent(err.message || "Failed to exchange GitHub authorization token")}`);
+      const errMsg = err.message || "Failed to exchange GitHub authorization token";
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head><title>GitHub Authorization Error</title></head>
+          <body style="font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+            <div style="text-align: center; padding: 32px; background: #1e293b; border-radius: 16px; max-width: 420px; border: 1px solid #334155;">
+              <h3 style="color: #ef4444; margin-top: 0; margin-bottom: 8px;">Connection Failed</h3>
+              <p style="color: #94a3b8; font-size: 14px;">${errMsg}</p>
+            </div>
+            <script>
+              if (window.opener) {
+                window.opener.postMessage({ type: 'GITHUB_OAUTH_ERROR', error: ${JSON.stringify(errMsg)} }, '*');
+                setTimeout(() => { try { window.close(); } catch(e) {} }, 2500);
+              } else {
+                window.location.href = '/?github_error=' + encodeURIComponent(${JSON.stringify(errMsg)});
+              }
+            </script>
+          </body>
+        </html>
+      `);
+    }
+  });
+
+  // 4b. Connect GitHub directly via Personal Access Token (PAT)
+  app.post("/api/github/token", async (req, res) => {
+    try {
+      const { token } = req.body;
+      if (!token || typeof token !== "string" || !token.trim()) {
+        return res.status(400).json({ error: "GitHub Personal Access Token is required." });
+      }
+      const cleanToken = token.trim();
+      const ghUser = await fetchGitHubUser(cleanToken);
+
+      const sid = "gh_sess_" + Math.random().toString(36).substring(2) + Date.now().toString(36);
+      ghSessionStore.set(sid, {
+        token: cleanToken,
+        user: ghUser,
+        createdAt: Date.now(),
+      });
+
+      res.cookie("docforge_gh_sid", sid, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+        path: "/",
+      });
+
+      res.json({
+        success: true,
+        sid,
+        user: ghUser,
+        message: `Successfully authorized as @${ghUser.login}`,
+      });
+    } catch (err: any) {
+      console.error("Connect via GitHub token error:", err.message);
+      res.status(400).json({ error: err.message || "Failed to validate GitHub token with GitHub API." });
     }
   });
 
@@ -236,7 +428,7 @@ async function startServer() {
 
   // 6. Disconnect GitHub account
   app.post("/api/github/disconnect", async (req, res) => {
-    const sid = req.cookies?.docforge_gh_sid;
+    const sid = getSessionId(req);
     if (sid && ghSessionStore.has(sid)) {
       const session = ghSessionStore.get(sid)!;
       try {
@@ -337,22 +529,25 @@ async function startServer() {
         return res.json({ success: true, note: "Local persistence only (Supabase not configured or guest user)" });
       }
 
+      const proj = project || {};
+      const projectName = proj.name || analysis?.repoMeta?.name || "Repository Project";
+
       // Upsert project
       const { data: projData, error: projError } = await sb
         .from("projects")
         .upsert({
-          name: project.name,
+          name: projectName,
           user_id: userId,
-          repository_url: project.githubUrl,
-          repo_owner: project.repoOwner || "",
-          repo_name: project.repoName || "",
-          default_branch: project.defaultBranch || "main",
-          is_private: project.isPrivate || false,
-          project_type: project.projectType || "SaaS",
-          primary_language: project.primaryLanguage || "TypeScript",
-          framework: project.framework || "React",
-          compliance_score: project.complianceScore || 75,
-          active_version: project.activeVersion || "v1.0",
+          repository_url: proj.githubUrl || analysis?.repoMeta?.htmlUrl || "",
+          repo_owner: proj.repoOwner || analysis?.repoMeta?.owner || "",
+          repo_name: proj.repoName || analysis?.repoMeta?.name || "",
+          default_branch: proj.defaultBranch || analysis?.branch || "main",
+          is_private: proj.isPrivate || false,
+          project_type: proj.projectType || "SaaS",
+          primary_language: proj.primaryLanguage || analysis?.primaryLanguage || "TypeScript",
+          framework: proj.framework || analysis?.framework || "React",
+          compliance_score: proj.complianceScore || 75,
+          active_version: proj.activeVersion || "v1.0",
           updated_at: new Date().toISOString(),
         })
         .select()
@@ -362,7 +557,7 @@ async function startServer() {
         console.warn("Supabase save project error:", projError.message);
       }
 
-      const targetProjectId = projData?.id || project.id;
+      const targetProjectId = projData?.id || proj.id || `proj_${Date.now().toString(36)}`;
 
       // Insert repository scan record
       if (analysis && targetProjectId) {
@@ -370,7 +565,7 @@ async function startServer() {
           project_id: targetProjectId,
           user_id: userId,
           commit_sha: analysis.commitSha || "",
-          branch: analysis.branch || project.defaultBranch || "main",
+          branch: analysis.branch || proj.defaultBranch || "main",
           tech_stack: analysis.techStack || [],
           detected_services: analysis.detectedServices || [],
           detected_data_handling: analysis.dataHandling || [],

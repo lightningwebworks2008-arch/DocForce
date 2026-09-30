@@ -39,8 +39,6 @@ import { ChangeMonitorView } from './components/ChangeMonitorView';
 import { DeployPortalView } from './components/DeployPortalView';
 import { MarketplaceView } from './components/MarketplaceView';
 import { AuthModal } from './components/AuthModal';
-import { SupabaseConfigModal } from './components/SupabaseConfigModal';
-import { GitHubConfigModal } from './components/GitHubConfigModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<
@@ -50,52 +48,20 @@ export default function App() {
   // User auth state
   const [user, setUser] = useState<UserProfile | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [supabaseConfigModalOpen, setSupabaseConfigModalOpen] = useState(!isSupabaseConfigured);
-  const [githubConfigModalOpen, setGithubConfigModalOpen] = useState(false);
 
   // Multi-project state
-  const [projectsList, setProjectsList] = useState<ProjectProfile[]>([INITIAL_PROJECT]);
-  const [currentProject, setCurrentProject] = useState<ProjectProfile>(INITIAL_PROJECT);
+  const [projectsList, setProjectsList] = useState<ProjectProfile[]>(INITIAL_PROJECT ? [INITIAL_PROJECT] : []);
+  const [currentProject, setCurrentProject] = useState<ProjectProfile | null>(INITIAL_PROJECT);
 
   // Active documents & history state
   const [docs, setDocs] = useState<DocumentItem[]>(INITIAL_DOCS);
-  const [activeDocId, setActiveDocId] = useState<string>(INITIAL_DOCS[0].id);
+  const [activeDocId, setActiveDocId] = useState<string>(INITIAL_DOCS[0]?.id || '');
   const [versions, setVersions] = useState<VersionRecord[]>(INITIAL_VERSIONS);
   const [questions, setQuestions] = useState<HumanReviewQuestion[]>(INITIAL_QUESTIONS);
   const [alerts, setAlerts] = useState<ChangeEventAlert[]>(INITIAL_CHANGE_ALERTS);
 
   // Compliance Report State
-  const [complianceReport, setComplianceReport] = useState<ComplianceReport>({
-    overallScore: 84,
-    gdprScore: 82,
-    ccpaScore: 88,
-    coppaScore: 92,
-    aiActScore: 90,
-    passedChecks: [
-      'Lawful basis for payment processing established (Stripe)',
-      'Google OAuth token lifecycle secured in Supabase session store',
-      'End-to-end TLS 1.3 in-transit and AES-256 at-rest encryption',
-      'Right to account deletion recognized in main Terms of Service',
-      'Cookie banner consent options specified',
-    ],
-    missingItems: [
-      {
-        severity: 'high',
-        title: 'Missing Explicit Subprocessors Hosting Location',
-        regulation: 'GDPR Article 28',
-        recommendation: 'Specify AWS/Supabase cloud regions for data transfers.',
-        docTarget: 'privacy-policy',
-      },
-      {
-        severity: 'medium',
-        title: 'PostHog Session Replay Opt-Out Notice',
-        regulation: 'ePrivacy Directive & Wiretap Statutes',
-        recommendation: 'Disclose session recording tool with explicit opt-out mechanism in Cookie Policy.',
-        docTarget: 'cookie-policy',
-      },
-    ],
-    summary: 'Project maintains high foundational compliance. Resolving 2 findings will achieve 95%+ audit grade.',
-  });
+  const [complianceReport, setComplianceReport] = useState<ComplianceReport | null>(null);
 
   // Loading states
   const [isScanning, setIsScanning] = useState(false);
@@ -183,28 +149,61 @@ export default function App() {
         .filter((s: any) => s.category === 'ai')
         .map((s: any) => s.name);
 
+      const baseProject: ProjectProfile = currentProject || {
+        id: `proj_${Date.now().toString(36)}`,
+        name: analysis.repoMeta.name || 'Repository Project',
+        projectType: 'SaaS',
+        websiteUrl: '',
+        githubUrl: analysis.repoMeta.htmlUrl,
+        repoOwner: analysis.repoMeta.owner,
+        repoName: analysis.repoMeta.name,
+        defaultBranch: analysis.repoMeta.defaultBranch || 'main',
+        isPrivate: analysis.repoMeta.isPrivate || false,
+        techStack: [],
+        authMethods: [],
+        paymentProviders: [],
+        analyticsProviders: [],
+        aiModels: [],
+        dataCollected: [],
+        complianceScore: 0,
+        activeVersion: 'v1.0',
+        createdAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+        deployedUrls: {
+          privacy: '',
+          terms: '',
+          security: '',
+          apiDocs: '',
+          publicPortal: '',
+        },
+      };
+
       const updatedProject: ProjectProfile = {
-        ...currentProject,
-        name: analysis.repoMeta.name || currentProject.name,
+        ...baseProject,
+        name: analysis.repoMeta.name || baseProject.name,
         githubUrl: analysis.repoMeta.htmlUrl,
         repoOwner: analysis.repoMeta.owner,
         repoName: analysis.repoMeta.name,
         defaultBranch: analysis.repoMeta.defaultBranch,
         isPrivate: analysis.repoMeta.isPrivate,
-        techStack: analysis.techStack || currentProject.techStack,
+        techStack: analysis.techStack || baseProject.techStack,
         framework: analysis.framework,
         primaryLanguage: analysis.primaryLanguage,
         projectType: analysis.projectType || 'SaaS',
-        authMethods: authMethods.length > 0 ? authMethods : ['Google OAuth', 'Supabase Auth'],
-        paymentProviders: paymentProviders.length > 0 ? paymentProviders : currentProject.paymentProviders,
-        analyticsProviders: analyticsProviders.length > 0 ? analyticsProviders : currentProject.analyticsProviders,
-        aiModels: aiModels.length > 0 ? aiModels : currentProject.aiModels,
+        authMethods: authMethods.length > 0 ? authMethods : baseProject.authMethods,
+        paymentProviders: paymentProviders.length > 0 ? paymentProviders : baseProject.paymentProviders,
+        analyticsProviders: analyticsProviders.length > 0 ? analyticsProviders : baseProject.analyticsProviders,
+        aiModels: aiModels.length > 0 ? aiModels : baseProject.aiModels,
         complianceScore: 82,
         lastAnalysisDate: new Date().toISOString(),
         lastAnalysisStatus: 'complete',
       };
 
       setCurrentProject(updatedProject);
+      setProjectsList((prev) => {
+        const exists = prev.some((p) => p.id === updatedProject.id);
+        return exists ? prev.map((p) => (p.id === updatedProject.id ? updatedProject : p)) : [updatedProject, ...prev];
+      });
       await saveProject(updatedProject);
 
       // Persist repository scan to Supabase via admin endpoint
@@ -287,18 +286,47 @@ export default function App() {
       const data = await res.json();
       if (data.success && data.detected) {
         const detected = data.detected;
+        const baseProject: ProjectProfile = currentProject || {
+          id: `proj_${Date.now().toString(36)}`,
+          name: 'Scanned Project',
+          websiteUrl: repoUrl || '',
+          githubUrl: repoUrl || '',
+          projectType: 'SaaS',
+          techStack: [],
+          authMethods: [],
+          paymentProviders: [],
+          analyticsProviders: [],
+          aiModels: [],
+          dataCollected: [],
+          complianceScore: 0,
+          activeVersion: 'v1.0',
+          createdAt: new Date().toISOString(),
+          lastUpdated: new Date().toISOString(),
+          deployedUrls: {
+            privacy: '',
+            terms: '',
+            security: '',
+            apiDocs: '',
+            publicPortal: '',
+          },
+        };
+
         const updatedProject: ProjectProfile = {
-          ...currentProject,
-          techStack: Array.from(new Set([...currentProject.techStack, ...detected.frameworks, ...detected.storage])),
-          authMethods: detected.auth.length > 0 ? detected.auth : currentProject.authMethods,
-          paymentProviders: detected.payments.length > 0 ? detected.payments : currentProject.paymentProviders,
-          analyticsProviders: detected.analytics.length > 0 ? detected.analytics : currentProject.analyticsProviders,
-          aiModels: detected.aiModels.length > 0 ? detected.aiModels : currentProject.aiModels,
+          ...baseProject,
+          techStack: Array.from(new Set([...baseProject.techStack, ...detected.frameworks, ...detected.storage])),
+          authMethods: detected.auth.length > 0 ? detected.auth : baseProject.authMethods,
+          paymentProviders: detected.payments.length > 0 ? detected.payments : baseProject.paymentProviders,
+          analyticsProviders: detected.analytics.length > 0 ? detected.analytics : baseProject.analyticsProviders,
+          aiModels: detected.aiModels.length > 0 ? detected.aiModels : baseProject.aiModels,
           complianceScore: 86,
           lastUpdated: new Date().toISOString(),
         };
 
         setCurrentProject(updatedProject);
+        setProjectsList((prev) => {
+          const exists = prev.some((p) => p.id === updatedProject.id);
+          return exists ? prev.map((p) => (p.id === updatedProject.id ? updatedProject : p)) : [updatedProject, ...prev];
+        });
         await saveProject(updatedProject);
       }
     } catch (err) {
@@ -389,12 +417,14 @@ export default function App() {
         }
       }
 
-      const updatedProject = {
-        ...currentProject,
-        complianceScore: Math.min(96, currentProject.complianceScore + 8),
-      };
-      setCurrentProject(updatedProject);
-      await saveProject(updatedProject);
+      if (currentProject) {
+        const updatedProject = {
+          ...currentProject,
+          complianceScore: Math.min(96, currentProject.complianceScore + 8),
+        };
+        setCurrentProject(updatedProject);
+        await saveProject(updatedProject);
+      }
     } catch (err) {
       console.error('Review sync failed:', err);
     } finally {
@@ -403,7 +433,7 @@ export default function App() {
   };
 
   // 5. Version Release & Commit Handler
-  const handleCreateRelease = async (commitMessage: string, versionTag: string) => {
+  const handleCreateRelease = async (versionTag: string, commitMessage: string) => {
     const docsSnapshot: Record<string, string> = {};
     docs.forEach((d) => {
       docsSnapshot[d.type] = d.content;
@@ -411,7 +441,7 @@ export default function App() {
 
     const newRecord: VersionRecord = {
       id: `ver_${Date.now()}`,
-      projectId: currentProject.id,
+      projectId: currentProject?.id || 'default',
       version: versionTag,
       timestamp: new Date().toISOString(),
       commitSha: Math.random().toString(36).substring(2, 9),
@@ -424,13 +454,15 @@ export default function App() {
     setVersions([newRecord, ...versions]);
     await saveDocumentVersion(newRecord);
 
-    const updatedProj = {
-      ...currentProject,
-      activeVersion: versionTag,
-      lastUpdated: new Date().toISOString(),
-    };
-    setCurrentProject(updatedProj);
-    await saveProject(updatedProj);
+    if (currentProject) {
+      const updatedProj = {
+        ...currentProject,
+        activeVersion: versionTag,
+        lastUpdated: new Date().toISOString(),
+      };
+      setCurrentProject(updatedProj);
+      await saveProject(updatedProj);
+    }
   };
 
   // 6. Rollback to Prior Version
@@ -452,13 +484,15 @@ export default function App() {
       })
     );
 
-    const updatedProj = {
-      ...currentProject,
-      activeVersion: versionRecord.version,
-      lastUpdated: new Date().toISOString(),
-    };
-    setCurrentProject(updatedProj);
-    await saveProject(updatedProj);
+    if (currentProject) {
+      const updatedProj = {
+        ...currentProject,
+        activeVersion: versionRecord.version,
+        lastUpdated: new Date().toISOString(),
+      };
+      setCurrentProject(updatedProj);
+      await saveProject(updatedProj);
+    }
   };
 
   // 7. Run Full Regulatory Compliance Audit
@@ -483,12 +517,14 @@ export default function App() {
       const data = await res.json();
       if (data.success && data.audit) {
         setComplianceReport(data.audit);
-        const updatedProj = {
-          ...currentProject,
-          complianceScore: data.audit.overallScore,
-        };
-        setCurrentProject(updatedProj);
-        await saveProject(updatedProj);
+        if (currentProject) {
+          const updatedProj = {
+            ...currentProject,
+            complianceScore: data.audit.overallScore,
+          };
+          setCurrentProject(updatedProj);
+          await saveProject(updatedProj);
+        }
       }
     } catch (err) {
       console.error('Audit failed:', err);
@@ -507,7 +543,7 @@ export default function App() {
         body: JSON.stringify({
           commitMessage: commitMsg,
           addedDependencies: [dependency],
-          currentStack: currentProject.techStack,
+          currentStack: currentProject?.techStack || [],
         }),
       });
 
@@ -562,37 +598,52 @@ export default function App() {
     const newId = `proj_${Date.now().toString(36)}`;
     const newProj: ProjectProfile = {
       id: newId,
-      name: 'New Developer App',
-      websiteUrl: 'https://newapp.example.com',
-      githubUrl: 'https://github.com/developer/new-app',
+      name: 'Untitled Project',
+      websiteUrl: '',
+      githubUrl: '',
       projectType: 'SaaS',
-      techStack: ['React 19', 'TypeScript', 'Tailwind CSS', 'Node.js'],
-      authMethods: ['Google OAuth'],
-      paymentProviders: ['Stripe'],
-      analyticsProviders: ['PostHog'],
-      aiModels: ['Google Gemini 3.8-Flash'],
-      dataCollected: ['Account email', 'Full name'],
-      complianceScore: 75,
+      techStack: [],
+      authMethods: [],
+      paymentProviders: [],
+      analyticsProviders: [],
+      aiModels: [],
+      dataCollected: [],
+      complianceScore: 0,
       activeVersion: 'v1.0',
       createdAt: new Date().toISOString(),
       lastUpdated: new Date().toISOString(),
       deployedUrls: {
-        privacy: 'https://newapp.example.com/privacy',
-        terms: 'https://newapp.example.com/terms',
-        security: 'https://newapp.example.com/security',
-        apiDocs: 'https://newapp.example.com/docs/api',
-        publicPortal: 'https://newapp.example.com/docs',
+        privacy: '',
+        terms: '',
+        security: '',
+        apiDocs: '',
+        publicPortal: '',
       },
     };
 
-    setProjectsList([newProj, ...projectsList]);
+    setProjectsList((prev) => [newProj, ...prev]);
     setCurrentProject(newProj);
     await saveProject(newProj);
     setActiveTab('scan');
   };
 
+  const handleGenerateMissingClause = async (docTarget: DocType, recommendation: string) => {
+    const targetDoc = docs.find((d) => d.type === docTarget);
+    if (!targetDoc) return;
+    const clause = `\n\n### Regulatory Compliance Update\n${recommendation}\n*Added automatically in compliance with verified multi-jurisdictional standards.*`;
+    const updatedContent = `${targetDoc.content}${clause}`;
+    const updatedDoc: DocumentItem = {
+      ...targetDoc,
+      content: updatedContent,
+      lastModified: new Date().toISOString(),
+      wordCount: updatedContent.split(/\s+/).filter(Boolean).length,
+    };
+    setDocs((prev) => prev.map((d) => (d.id === targetDoc.id ? updatedDoc : d)));
+    await saveDocument(updatedDoc);
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-[#0C0B0D] text-[#F0F0F3] flex flex-col font-sans selection:bg-[#753CFF] selection:text-white">
       {/* Top Navigation & Project Switcher */}
       <Navbar
         activeTab={activeTab}
@@ -607,8 +658,6 @@ export default function App() {
           await signOut();
           setUser(null);
         }}
-        onOpenSupabaseConfig={() => setSupabaseConfigModalOpen(true)}
-        onOpenGitHubConfig={() => setGithubConfigModalOpen(true)}
       />
 
       {/* Main Container View Router */}
@@ -618,8 +667,36 @@ export default function App() {
             project={currentProject}
             user={user}
             onUpdateProject={async (updated) => {
-              const p = { ...currentProject, ...updated };
+              const base: ProjectProfile = currentProject || {
+                id: `proj_${Date.now().toString(36)}`,
+                name: updated.name || 'Untitled Project',
+                projectType: 'SaaS',
+                websiteUrl: '',
+                githubUrl: '',
+                techStack: [],
+                authMethods: [],
+                paymentProviders: [],
+                analyticsProviders: [],
+                aiModels: [],
+                dataCollected: [],
+                complianceScore: 0,
+                activeVersion: 'v1.0',
+                createdAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                deployedUrls: {
+                  privacy: '',
+                  terms: '',
+                  security: '',
+                  apiDocs: '',
+                  publicPortal: '',
+                },
+              };
+              const p = { ...base, ...updated };
               setCurrentProject(p);
+              setProjectsList((prev) => {
+                const exists = prev.some((item) => item.id === p.id);
+                return exists ? prev.map((item) => (item.id === p.id ? p : item)) : [p, ...prev];
+              });
               await saveProject(p);
             }}
             onTriggerScan={handleTriggerScan}
@@ -628,7 +705,6 @@ export default function App() {
             onNavigateToReview={() => setActiveTab('review')}
             onNavigateToDocs={() => setActiveTab('docs')}
             onOpenAuthModal={() => setAuthModalOpen(true)}
-            onOpenGitHubConfigModal={() => setGithubConfigModalOpen(true)}
           />
         )}
 
@@ -671,6 +747,7 @@ export default function App() {
         {activeTab === 'versions' && (
           <VersionControlView
             project={currentProject}
+            activeVersion={currentProject?.activeVersion || 'v1.0'}
             versions={versions}
             docs={docs}
             onCreateRelease={handleCreateRelease}
@@ -682,15 +759,10 @@ export default function App() {
           <ComplianceAssistantView
             report={complianceReport}
             project={currentProject}
+            docs={docs}
             onRunAudit={handleRunAudit}
             isAuditing={isAuditing}
-            onNavigateToDoc={(docType) => {
-              const matched = docs.find((d) => d.type === docType);
-              if (matched) {
-                setActiveDocId(matched.id);
-                setActiveTab('docs');
-              }
-            }}
+            onGenerateMissingClause={handleGenerateMissingClause}
           />
         )}
 
@@ -761,18 +833,6 @@ export default function App() {
           const u = await getCurrentUser();
           setUser(u);
         }}
-      />
-
-      {/* Supabase API Key & RLS Configuration Modal */}
-      <SupabaseConfigModal
-        isOpen={supabaseConfigModalOpen}
-        onClose={() => setSupabaseConfigModalOpen(false)}
-      />
-
-      {/* GitHub App & OAuth Integration Modal */}
-      <GitHubConfigModal
-        isOpen={githubConfigModalOpen}
-        onClose={() => setGithubConfigModalOpen(false)}
       />
     </div>
   );

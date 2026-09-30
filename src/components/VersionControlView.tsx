@@ -1,27 +1,21 @@
 import React, { useState } from 'react';
-import { VersionRecord, DocumentItem, DocType } from '../types';
+import { VersionRecord, DocumentItem, DocType, ProjectProfile } from '../types';
 import {
   GitCommit,
-  GitBranch,
   GitMerge,
   History,
   Tag,
-  Check,
-  Plus,
-  Minus,
   RotateCcw,
-  Sparkles,
-  ArrowRight,
-  Clock,
-  ShieldCheck,
-  FileText
+  ArrowRight
 } from 'lucide-react';
 
 interface VersionControlViewProps {
+  project?: ProjectProfile | null;
   versions: VersionRecord[];
   activeVersion: string;
   docs: DocumentItem[];
-  onCreateNewVersion: (versionTag: string, commitMsg: string) => void;
+  onCreateRelease?: (versionTag: string, commitMsg: string) => void;
+  onCreateNewVersion?: (versionTag: string, commitMsg: string) => void;
   onRollbackVersion: (version: VersionRecord) => void;
 }
 
@@ -29,17 +23,18 @@ export const VersionControlView: React.FC<VersionControlViewProps> = ({
   versions,
   activeVersion,
   docs,
+  onCreateRelease,
   onCreateNewVersion,
   onRollbackVersion,
 }) => {
   const [selectedDocType, setSelectedDocType] = useState<DocType>('privacy-policy');
-  const [compareBaseVersion, setCompareBaseVersion] = useState<string>(versions[1]?.version || versions[0]?.version);
-  const [compareTargetVersion, setCompareTargetVersion] = useState<string>(versions[0]?.version);
+  const [compareBaseVersion, setCompareBaseVersion] = useState<string>(versions[1]?.version || versions[0]?.version || 'v1.0');
+  const [compareTargetVersion, setCompareTargetVersion] = useState<string>(versions[0]?.version || 'v1.0');
 
   // New version release state
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newVersionTag, setNewVersionTag] = useState('v1.3');
-  const [commitMessage, setCommitMessage] = useState('feat: update privacy policy with PostHog analytics & refund window');
+  const [newVersionTag, setNewVersionTag] = useState(versions.length > 0 ? `v1.${versions.length}` : 'v1.0');
+  const [commitMessage, setCommitMessage] = useState('Updated legal policies snapshot');
 
   const baseVer = versions.find((v) => v.version === compareBaseVersion) || versions[1] || versions[0];
   const targetVer = versions.find((v) => v.version === compareTargetVersion) || versions[0];
@@ -90,59 +85,70 @@ export const VersionControlView: React.FC<VersionControlViewProps> = ({
   const handleCreateRelease = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newVersionTag.trim()) return;
-    onCreateNewVersion(newVersionTag, commitMessage);
+    if (onCreateRelease) {
+      onCreateRelease(newVersionTag, commitMessage);
+    } else if (onCreateNewVersion) {
+      onCreateNewVersion(newVersionTag, commitMessage);
+    }
     setIsModalOpen(false);
   };
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
-      {/* Header Banner */}
-      <div className="bg-slate-900 text-slate-100 rounded-2xl p-6 sm:p-8 border border-slate-800 shadow-xl relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+    <div className="space-y-6 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="pb-5 border-b border-[#24222D] flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-2 text-indigo-400 font-semibold text-sm">
-            <History className="w-4 h-4" />
-            <span>Workflow Step 5: Git for Legal & Technical Documentation</span>
+          <div className="flex items-center gap-2 mb-1.5 text-[#8C8C93] font-mono text-xs uppercase tracking-wider">
+            <History className="w-3.5 h-3.5 text-[#33FBFF]" />
+            <span>Workflow Step 5: Version History &amp; Audit Trail</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-            Version Control & Audit Trail
+          <h1 className="text-2xl sm:text-3xl font-display font-semibold tracking-tight text-[#FFFFFF]">
+            Version Control &amp; Audit Trail
           </h1>
-          <p className="text-slate-300 text-sm sm:text-base mt-1 max-w-2xl">
+          <p className="text-[#8C8C93] text-sm sm:text-base mt-1 max-w-2xl leading-relaxed">
             Every legal or technical adjustment generates an immutable version tag. Inspect semantic diffs, maintain audit compliance trails, or rollback with a single click.
           </p>
         </div>
 
         <button
           onClick={() => setIsModalOpen(true)}
-          className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition-all shadow-sm flex items-center gap-2 shrink-0 cursor-pointer"
+          className="px-4 py-2 bg-[#B43BFF] hover:bg-[#A127F5] text-white rounded-md text-xs font-semibold transition-all shadow-[0_0_15px_rgba(180,59,255,0.3)] flex items-center gap-2 shrink-0 cursor-pointer"
         >
-          <Tag className="w-4 h-4" />
+          <Tag className="w-3.5 h-3.5" />
           <span>Tag New Release</span>
         </button>
       </div>
 
       {/* Release Commit Timeline */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
-        <h2 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <GitCommit className="w-5 h-5 text-indigo-600" />
-          <span>Release History & Commit Tree</span>
+      <div className="bg-[#15141C] rounded-md border border-[#24222D] p-5 shadow-lg">
+        <h2 className="text-sm font-semibold text-[#FFFFFF] mb-4 flex items-center gap-2">
+          <GitCommit className="w-4 h-4 text-[#33FBFF]" />
+          <span>Release History &amp; Commit Tree</span>
         </h2>
 
-        <div className="space-y-4">
-          {versions.map((ver, idx) => {
-            const isLatest = ver.version === activeVersion;
-            return (
-              <div
-                key={ver.id}
-                className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                  isLatest
-                    ? 'border-indigo-300 bg-indigo-50/40 shadow-xs'
-                    : 'border-slate-200 bg-slate-50/50'
-                }`}
-              >
+        <div className="space-y-3">
+          {versions.length === 0 ? (
+            <div className="p-8 text-center bg-[#111015] rounded-md border border-[#24222D] text-[#8C8C93] text-xs">
+              No version tags published yet. Click &quot;Tag New Release&quot; to snapshot your legal and technical documents.
+            </div>
+          ) : (
+            versions.map((ver) => {
+              const isLatest = ver.version === activeVersion;
+              return (
+                <div
+                  key={ver.id}
+                  className={`p-3.5 rounded-md border transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                    isLatest
+                      ? 'border-[#B43BFF] bg-[#1F1D2B] shadow-[0_0_12px_rgba(180,59,255,0.12)]'
+                      : 'border-[#24222D] bg-[#18171E]'
+                  }`}
+                >
                 <div className="flex items-start gap-3">
                   <div
-                    className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 font-mono text-xs font-bold ${
-                      isLatest ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'
+                    className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 font-mono text-xs font-medium border ${
+                      isLatest
+                        ? 'bg-[#B43BFF] text-white border-[#B43BFF]'
+                        : 'bg-[#24222D] text-[#F0F0F3] border-[#2E2C39]'
                     }`}
                   >
                     {ver.version}
@@ -150,21 +156,21 @@ export const VersionControlView: React.FC<VersionControlViewProps> = ({
 
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono text-xs font-bold text-slate-900">
+                      <span className="font-mono text-xs font-medium text-[#33FBFF]">
                         {ver.commitSha}
                       </span>
-                      <span className="text-xs font-medium text-slate-700">•</span>
-                      <span className="text-xs text-slate-600 font-medium">{ver.commitMessage}</span>
+                      <span className="text-xs text-[#8C8C93]">•</span>
+                      <span className="text-xs text-[#FFFFFF] font-medium">{ver.commitMessage}</span>
                       {isLatest && (
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-md bg-[#753CFF]/15 text-[#B43BFF] border border-[#753CFF]/30">
                           Active Release
                         </span>
                       )}
                     </div>
 
-                    <p className="text-xs text-slate-500 mt-1">{ver.changesSummary}</p>
+                    <p className="text-xs text-[#8C8C93] mt-1">{ver.changesSummary}</p>
 
-                    <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-2 font-mono">
+                    <div className="flex items-center gap-3 text-[11px] text-[#8C8C93] mt-1.5 font-mono">
                       <span>{ver.author}</span>
                       <span>•</span>
                       <span>{new Date(ver.timestamp).toLocaleDateString()}</span>
@@ -176,7 +182,7 @@ export const VersionControlView: React.FC<VersionControlViewProps> = ({
                   {!isLatest && (
                     <button
                       onClick={() => onRollbackVersion(ver)}
-                      className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
+                      className="px-2.5 py-1.5 bg-[#18171E] hover:bg-[#22202A] text-[#F0F0F3] border border-[#2D2A3A] rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                       <span>Rollback to {ver.version}</span>
@@ -187,27 +193,28 @@ export const VersionControlView: React.FC<VersionControlViewProps> = ({
                       setCompareBaseVersion(ver.version);
                       setCompareTargetVersion(activeVersion);
                     }}
-                    className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                    className="px-2.5 py-1.5 bg-[#B43BFF] hover:bg-[#A127F5] text-white rounded-md text-xs font-medium transition-colors cursor-pointer"
                   >
                     Compare Diff
                   </button>
                 </div>
               </div>
             );
-          })}
+          })
+        )}
         </div>
       </div>
 
       {/* Visual Diff Viewer */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+      <div className="bg-[#15141C] rounded-md border border-[#24222D] p-5 space-y-4 shadow-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#24222D] pb-4">
           <div>
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <GitMerge className="w-5 h-5 text-indigo-600" />
+            <h2 className="text-sm font-semibold text-[#FFFFFF] flex items-center gap-2">
+              <GitMerge className="w-4 h-4 text-[#33FBFF]" />
               <span>Visual Diff Engine</span>
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Comparing changes between releases. Lines highlighted in green represent additions; lines in red represent deletions.
+            <p className="text-xs text-[#8C8C93] mt-0.5">
+              Comparing changes between releases. Lines with green markings represent additions; lines in red represent deletions.
             </p>
           </div>
 
@@ -217,7 +224,7 @@ export const VersionControlView: React.FC<VersionControlViewProps> = ({
             <select
               value={selectedDocType}
               onChange={(e) => setSelectedDocType(e.target.value as DocType)}
-              className="text-xs font-medium px-3 py-2 rounded-lg border border-slate-300 bg-slate-50 text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="text-xs font-mono px-2.5 py-1.5 rounded-md border border-[#24222D] bg-[#111015] text-[#F0F0F3] focus:outline-none focus:border-[#B43BFF]"
             >
               <option value="privacy-policy">Privacy Policy</option>
               <option value="terms-of-service">Terms of Service</option>
@@ -231,60 +238,68 @@ export const VersionControlView: React.FC<VersionControlViewProps> = ({
             <select
               value={compareBaseVersion}
               onChange={(e) => setCompareBaseVersion(e.target.value)}
-              className="text-xs font-medium px-3 py-2 rounded-lg border border-slate-300 bg-slate-50 text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
+              className="text-xs font-mono px-2.5 py-1.5 rounded-md border border-[#24222D] bg-[#111015] text-[#F0F0F3] focus:outline-none focus:border-[#B43BFF]"
             >
-              {versions.map((v) => (
-                <option key={v.id} value={v.version}>
-                  Base: {v.version}
-                </option>
-              ))}
+              {versions.length > 0 ? (
+                versions.map((v) => (
+                  <option key={v.id} value={v.version}>
+                    Base: {v.version}
+                  </option>
+                ))
+              ) : (
+                <option value="v1.0">Base: v1.0</option>
+              )}
             </select>
 
-            <ArrowRight className="w-4 h-4 text-slate-400" />
+            <ArrowRight className="w-3.5 h-3.5 text-[#8C8C93]" />
 
             {/* Target Version */}
             <select
               value={compareTargetVersion}
               onChange={(e) => setCompareTargetVersion(e.target.value)}
-              className="text-xs font-medium px-3 py-2 rounded-lg border border-slate-300 bg-slate-50 text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
+              className="text-xs font-mono px-2.5 py-1.5 rounded-md border border-[#24222D] bg-[#111015] text-[#F0F0F3] focus:outline-none focus:border-[#B43BFF]"
             >
-              {versions.map((v) => (
-                <option key={v.id} value={v.version}>
-                  Target: {v.version}
-                </option>
-              ))}
+              {versions.length > 0 ? (
+                versions.map((v) => (
+                  <option key={v.id} value={v.version}>
+                    Target: {v.version}
+                  </option>
+                ))
+              ) : (
+                <option value="v1.0">Target: v1.0</option>
+              )}
             </select>
           </div>
         </div>
 
         {/* Diff Content Box */}
-        <div className="rounded-lg border border-slate-200 bg-slate-950 text-slate-100 font-mono text-xs overflow-x-auto max-h-[500px]">
-          <div className="p-3 border-b border-slate-800 bg-slate-900 text-slate-400 text-[11px] flex justify-between">
+        <div className="rounded-md border border-[#24222D] bg-[#0E0D13] font-mono text-xs overflow-x-auto max-h-[500px]">
+          <div className="p-2.5 border-b border-[#24222D] bg-[#131217] text-[#8C8C93] text-[11px] flex justify-between">
             <span>--- a/{selectedDocType}.md ({compareBaseVersion})</span>
             <span>+++ b/{selectedDocType}.md ({compareTargetVersion})</span>
           </div>
 
-          <div className="divide-y divide-slate-900/60 p-2">
+          <div className="divide-y divide-[#24222D]/60 p-1">
             {diffLines.slice(0, 80).map((line, idx) => {
               if (line.type === 'added') {
                 return (
-                  <div key={idx} className="bg-emerald-950/60 text-emerald-300 px-3 py-1 flex items-start gap-2">
-                    <span className="text-emerald-500 select-none font-bold">+</span>
+                  <div key={idx} className="bg-[#0DB44A]/10 text-[#0DB44A] px-3 py-1 flex items-start gap-2 border-l-2 border-[#0DB44A]">
+                    <span className="text-[#0DB44A] select-none font-bold">+</span>
                     <span>{line.text}</span>
                   </div>
                 );
               }
               if (line.type === 'removed') {
                 return (
-                  <div key={idx} className="bg-rose-950/60 text-rose-300 px-3 py-1 flex items-start gap-2">
-                    <span className="text-rose-500 select-none font-bold">-</span>
+                  <div key={idx} className="bg-[#FF5A5A]/10 text-[#FF5A5A] px-3 py-1 flex items-start gap-2 border-l-2 border-[#FF5A5A]">
+                    <span className="text-[#FF5A5A] select-none font-bold">-</span>
                     <span>{line.text}</span>
                   </div>
                 );
               }
               return (
-                <div key={idx} className="text-slate-400 px-3 py-0.5 flex items-start gap-2 hover:bg-slate-900/50">
-                  <span className="text-slate-600 select-none font-normal"> </span>
+                <div key={idx} className="text-[#A5A3B0] px-3 py-0.5 flex items-start gap-2 hover:bg-[#18171E]">
+                  <span className="text-[#5E5C68] select-none font-normal"> </span>
                   <span>{line.text}</span>
                 </div>
               );
@@ -295,19 +310,19 @@ export const VersionControlView: React.FC<VersionControlViewProps> = ({
 
       {/* Modal: Tag New Release */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
-            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <Tag className="w-5 h-5 text-indigo-600" />
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-[#15141C] rounded-md border border-[#2D2A3A] max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <h3 className="text-base font-display font-semibold text-[#FFFFFF] flex items-center gap-2">
+              <Tag className="w-4 h-4 text-[#33FBFF]" />
               <span>Tag New Documentation Release</span>
             </h3>
-            <p className="text-xs text-slate-500">
-              Creates an immutable checkpoint snapshot of all 15 active documents and stamps a semantic version.
+            <p className="text-xs text-[#8C8C93]">
+              Creates an immutable checkpoint snapshot of all active documents and stamps a semantic version.
             </p>
 
             <form onSubmit={handleCreateRelease} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
+                <label className="block text-xs font-mono uppercase tracking-wider text-[#8C8C93] mb-1">
                   Semantic Version Tag
                 </label>
                 <input
@@ -316,12 +331,12 @@ export const VersionControlView: React.FC<VersionControlViewProps> = ({
                   value={newVersionTag}
                   onChange={(e) => setNewVersionTag(e.target.value)}
                   placeholder="e.g. v1.3"
-                  className="w-full p-2.5 rounded-lg border border-slate-300 text-sm font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full p-2.5 rounded-md border border-[#24222D] bg-[#111015] text-xs font-mono text-[#F0F0F3] focus:outline-none focus:border-[#B43BFF]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
+                <label className="block text-xs font-mono uppercase tracking-wider text-[#8C8C93] mb-1">
                   Commit Message / Release Summary
                 </label>
                 <textarea
@@ -330,7 +345,7 @@ export const VersionControlView: React.FC<VersionControlViewProps> = ({
                   value={commitMessage}
                   onChange={(e) => setCommitMessage(e.target.value)}
                   placeholder="Describe legal or architectural modifications..."
-                  className="w-full p-2.5 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="w-full p-2.5 rounded-md border border-[#24222D] bg-[#111015] text-xs text-[#F0F0F3] focus:outline-none focus:border-[#B43BFF]"
                 />
               </div>
 
@@ -338,15 +353,15 @@ export const VersionControlView: React.FC<VersionControlViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-100 cursor-pointer"
+                  className="px-3 py-1.5 rounded-md border border-[#2D2A3A] text-xs font-medium text-[#8C8C93] hover:text-white hover:bg-[#1E1C28] cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm cursor-pointer"
+                  className="px-3 py-1.5 rounded-md bg-[#B43BFF] hover:bg-[#A127F5] text-white text-xs font-semibold cursor-pointer shadow-[0_0_12px_rgba(180,59,255,0.25)] transition-all"
                 >
-                  Confirm & Tag Release
+                  Confirm &amp; Tag Release
                 </button>
               </div>
             </form>

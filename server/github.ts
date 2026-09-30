@@ -199,28 +199,54 @@ export async function fetchUserRepos(token?: string) {
   }
 
   const headers = getHeaders(token);
-  const response = await fetch('https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator,organization_member', {
-    headers,
-  });
+  const rawRepos: any[] = [];
+  const seenIds = new Set<number>();
 
-  if (response.status === 401) {
-    throw new Error('GitHub authorization expired or unauthorized. Please re-authenticate your GitHub account.');
-  }
-  if (response.status === 403 || response.status === 429) {
-    const resetHeader = response.headers.get('x-ratelimit-reset');
-    const resetTime = resetHeader ? new Date(parseInt(resetHeader) * 1000).toLocaleTimeString() : 'soon';
-    throw new Error(`GitHub API rate limit reached. Resets at ${resetTime}. Authenticate with GitHub OAuth for 5,000 requests/hour.`);
-  }
-  if (!response.ok) {
-    throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+  // Fetch up to 2 pages (up to 200 repositories) explicitly passing visibility=all
+  for (let page = 1; page <= 2; page++) {
+    try {
+      const response = await fetch(
+        `https://api.github.com/user/repos?visibility=all&affiliation=owner,collaborator,organization_member&sort=updated&per_page=100&page=${page}`,
+        { headers }
+      );
+
+      if (response.status === 401) {
+        throw new Error('GitHub authorization expired or unauthorized. Please re-authenticate your GitHub account.');
+      }
+      if (response.status === 403 || response.status === 429) {
+        const resetHeader = response.headers.get('x-ratelimit-reset');
+        const resetTime = resetHeader ? new Date(parseInt(resetHeader) * 1000).toLocaleTimeString() : 'soon';
+        throw new Error(`GitHub API rate limit reached. Resets at ${resetTime}. Authenticate with GitHub OAuth for 5,000 requests/hour.`);
+      }
+      if (!response.ok) {
+        if (page === 1) {
+          throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+        }
+        break;
+      }
+
+      const data = await response.json();
+      if (!Array.isArray(data) || data.length === 0) {
+        break;
+      }
+
+      for (const repo of data) {
+        if (repo && repo.id && !seenIds.has(repo.id)) {
+          seenIds.add(repo.id);
+          rawRepos.push(repo);
+        }
+      }
+
+      if (data.length < 100) {
+        break;
+      }
+    } catch (err: any) {
+      if (rawRepos.length === 0) throw err;
+      break;
+    }
   }
 
-  const data = await response.json();
-  if (!Array.isArray(data)) {
-    return [];
-  }
-
-  return data.map((repo: any) => ({
+  return rawRepos.map((repo: any) => ({
     id: repo.id,
     name: repo.name,
     fullName: repo.full_name,
@@ -858,7 +884,7 @@ export async function inspectRepository(owner: string, repo: string, branch?: st
         { label: '30-Day Money-Back Guarantee', value: '30-day money-back guarantee for all paid subscription tiers', description: 'Enterprise / premium standard' },
         { label: 'No Refunds / All Sales Final', value: 'All transactions are final; cancellations apply at end of current billing cycle', description: 'Immediate software access policy' },
       ],
-      selectedAnswer: '14-day full refund guarantee upon request, no questions asked',
+      selectedAnswer: '',
       isConfirmed: false,
       affectedDocs: ['privacy-policy', 'terms-of-service', 'refund-policy'],
     });
@@ -876,7 +902,7 @@ export async function inspectRepository(owner: string, repo: string, branch?: st
         { label: 'Immediate Irrevocable Deletion', value: 'Immediate database purge upon confirmation with zero backup retention', description: 'Strict privacy mode' },
         { label: 'Support Request via Email (48-hour response)', value: 'Users submit email request; manually purged within 48 hours', description: 'Manual fulfillment' },
       ],
-      selectedAnswer: 'Users can delete account directly in settings; full backup purge within 30 days',
+      selectedAnswer: '',
       isConfirmed: false,
       affectedDocs: ['privacy-policy', 'terms-of-service', 'data-deletion'],
     });
@@ -893,7 +919,7 @@ export async function inspectRepository(owner: string, repo: string, branch?: st
         { label: 'Zero-Training Guarantee (Enterprise Privacy)', value: 'User inputs are processed ephemerally and never used to train foundation models', description: 'Recommended for commercial SaaS' },
         { label: 'Opt-In Model Improvement Only', value: 'Aggregated, pseudonymized telemetry is used only with explicit user opt-in', description: 'Permissioned model tuning' },
       ],
-      selectedAnswer: 'User inputs are processed ephemerally and never used to train foundation models',
+      selectedAnswer: '',
       isConfirmed: false,
       affectedDocs: ['ai-disclosure', 'privacy-policy', 'terms-of-service'],
     });
@@ -910,7 +936,7 @@ export async function inspectRepository(owner: string, repo: string, branch?: st
         { label: 'Session Replay with Full PII Masking', value: 'Session replay enabled with strict masking on all passwords, emails, and input fields', description: 'Safe telemetry configuration' },
         { label: 'Aggregated Metrics Only (No session replay)', value: 'Only anonymous pageview counts and event metrics recorded; no screen replays', description: 'Lightweight tracking' },
       ],
-      selectedAnswer: 'Session replay enabled with strict masking on all passwords, emails, and input fields',
+      selectedAnswer: '',
       isConfirmed: false,
       affectedDocs: ['cookie-policy', 'privacy-policy'],
     });
